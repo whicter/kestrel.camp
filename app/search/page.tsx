@@ -1,0 +1,166 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Navbar } from "@/components/Navbar";
+import { ProviderBadge } from "@/components/ProviderBadge";
+import { AuthModal } from "@/components/AuthModal";
+import { WatchModal } from "@/components/WatchModal";
+import { campgrounds as campgroundsApi, type Campground } from "@/lib/api";
+import {
+  Search, SlidersHorizontal, MapPin, ChevronRight,
+  Map, List, CalendarDays, Clock, Loader2, Bell,
+} from "lucide-react";
+import { CampgroundMap } from "@/components/CampgroundMap";
+
+export default function SearchPage() {
+  const router = useRouter();
+  const [view, setView]             = useState<"list" | "map">("list");
+  const [query, setQuery]           = useState("");
+  const [results, setResults]       = useState<Campground[]>([]);
+  const [loading, setLoading]       = useState(false);
+  const [watching, setWatching]     = useState<Campground | null>(null);
+  const [showAuth, setShowAuth]     = useState(false);
+
+  const search = useCallback(async (q: string) => {
+    setLoading(true);
+    try {
+      const data = await campgroundsApi.search({ q: q || undefined, limit: 50 });
+      setResults(data);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { search(""); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const t = setTimeout(() => search(query), 300);
+    return () => clearTimeout(t);
+  }, [query, search]);
+
+  return (
+    <>
+      <Navbar />
+
+      <div className="flex h-[calc(100vh-64px)] flex-col">
+        {/* Search bar */}
+        <div className="shrink-0 border-b border-border bg-background px-4 py-3 sm:px-6">
+          <div className="mx-auto flex max-w-7xl items-center gap-3">
+            <div className="relative flex-1">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search parks, campgrounds, states…"
+                className="w-full rounded-lg border border-border bg-card py-2.5 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary">
+              <SlidersHorizontal size={14} />
+              <span className="hidden sm:inline">Filters</span>
+            </button>
+
+            <div className="flex rounded-lg border border-border bg-card p-0.5">
+              {(["list", "map"] as const).map((v) => (
+                <button key={v} onClick={() => setView(v)}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                    view === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {v === "list" ? <List size={13} /> : <Map size={13} />}
+                  <span className="hidden sm:inline capitalize">{v}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-1 overflow-hidden">
+          {/* Results */}
+          <div className={`flex flex-col overflow-y-auto ${view === "map" ? "w-80 shrink-0 border-r border-border" : "w-full"}`}>
+            <div className="flex items-center justify-between border-b border-border px-4 py-2 sm:px-6">
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                {loading && <Loader2 size={12} className="animate-spin" />}
+                {results.length} campgrounds
+              </span>
+            </div>
+
+            <div className="flex flex-col">
+              {results.map((r) => (
+                <div key={r.id} className="group border-b border-border px-4 py-4 transition-colors hover:bg-secondary/50 sm:px-6">
+                  <div className="flex items-start gap-3">
+                    <MapPin size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{r.name}</p>
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {r.park_name} · {r.state_province}
+                          </p>
+                        </div>
+                        <ChevronRight size={14} className="mt-0.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                      </div>
+
+                      <div className="mt-2.5 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <ProviderBadge provider={r.provider as never} />
+                          {r.total_sites && (
+                            <span className="text-xs text-muted-foreground">{r.total_sites} sites</span>
+                          )}
+                        </div>
+
+                        {/* Watch button */}
+                        <button
+                          onClick={() => setWatching(r)}
+                          className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                        >
+                          <Bell size={11} style={{ color: "var(--watching)" }} />
+                          Watch
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {!loading && results.length === 0 && (
+                <div className="flex flex-col items-center gap-3 py-20 text-center">
+                  <Search size={32} className="text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground">No campgrounds found</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Map panel */}
+          {view === "map" && (
+            <div className="relative flex flex-1 overflow-hidden">
+              <CampgroundMap campgrounds={results} onSelect={(cg) => setWatching(cg)} />
+              <div className="absolute bottom-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 shadow-md">
+                <Clock size={12} className="text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Scanning {results.length} campgrounds</span>
+                <span className="inline-block size-1.5 rounded-full pulse-dot" style={{ backgroundColor: "var(--available)" }} />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Watch modal */}
+      {watching && (
+        <WatchModal
+          campground={watching}
+          onClose={() => setWatching(null)}
+          onAuthRequired={() => { setWatching(null); setShowAuth(true); }}
+          onSuccess={() => { setWatching(null); router.push("/alerts"); }}
+        />
+      )}
+
+      {/* Auth modal */}
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} />}
+    </>
+  );
+}
