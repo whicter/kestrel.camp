@@ -23,9 +23,16 @@ class UserResponse(BaseModel):
     tier: str
     notify_email: bool
     notify_sms: bool
+    phone: str | None = None
 
     model_config = {"from_attributes": True}
 
     @field_serializer("id")
     def serialize_id(self, v: uuid.UUID) -> str:
         return str(v)
+
+
+class UpdateSettingsRequest(BaseModel):
+    notify_email: bool | None = None
+    notify_sms: bool | None = None
+    phone: str | None = None

@@ -7,7 +7,7 @@ Flow:
   3. Determine date range to scan (union of all alert windows)
   4. Call the provider adapter to fetch live availability
   5. Compare with previous Redis snapshot
-  6. For each alert whose dates now have availability → notify user
+  6. For each alert whose dates now have availability → notify user (email + SMS)
   7. Save new snapshot to DB + update Redis cache
 """
 import json
@@ -25,6 +25,7 @@ from ..models.scan import AvailabilitySnapshot, NotificationLog, NotificationCha
 from ..models.user import User
 from ..providers import get_provider
 from ..notifications.email import send_alert_notification
+from ..notifications.sms import send_sms_notification
 from ..config import settings
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ async def scan_campground(ctx: dict[str, Any], campground_id: str) -> dict:
     """
     redis = ctx["redis"]
     now = datetime.now(timezone.utc)
+    today = now.date()
     logger.info("🔍 Scanning campground %s", campground_id)
 
     async with AsyncSessionLocal() as db:
@@ -70,9 +72,24 @@ async def scan_campground(ctx: dict[str, Any], campground_id: str) -> dict:
         )
         active_alerts: list[Alert] = list(alerts_result.scalars().all())
 
+        # Auto-expire alerts whose date window has passed
+        expired_count = 0
+        still_active = []
+        for alert in active_alerts:
+            if alert.date_to < today:
+                alert.status = AlertStatus.expired
+                expired_count += 1
+                logger.info("⏰ Expired alert %s (date_to=%s)", alert.id, alert.date_to)
+            else:
+                still_active.append(alert)
+        active_alerts = still_active
+
+        if expired_count:
+            await db.commit()
+
         if not active_alerts:
             logger.info("No active alerts for %s, skipping", campground.name)
-            return {"status": "no_alerts"}
+            return {"status": "no_alerts", "expired": expired_count}
 
         # 3. Determine scan date range = union of all alert windows
         min_date: date = min(a.date_from for a in active_alerts)
@@ -99,7 +116,7 @@ async def scan_campground(ctx: dict[str, Any], campground_id: str) -> dict:
         prev_available: set[str] = set(json.loads(prev_raw)) if prev_raw else set()
         curr_available: set[str] = set(availability.available_site_ids)
 
-        newly_available = curr_available - prev_available  # sites that just opened
+        newly_available = curr_available - prev_available
 
         # Update Redis snapshot
         await redis.set(snapshot_key, json.dumps(list(curr_available)), ex=3600)
@@ -113,15 +130,12 @@ async def scan_campground(ctx: dict[str, Any], campground_id: str) -> dict:
         )
         db.add(snapshot)
 
-        # Update campground.last_scanned_at
         campground.last_scanned_at = now
 
         notified = 0
 
         if newly_available or curr_available:
-            # 7. Check each alert for matching dates
             for alert in active_alerts:
-                # Check if any currently available site has dates overlapping this alert
                 matching_sites = [
                     s for s in availability.sites
                     if s.site_id in curr_available
@@ -132,23 +146,19 @@ async def scan_campground(ctx: dict[str, Any], campground_id: str) -> dict:
                 if not matching_sites:
                     continue
 
-                # Check we haven't already notified for this exact set recently
                 dedup_key = f"notif:dedup:{alert.id}:{sorted(curr_available)}"
                 already = await redis.get(dedup_key)
                 if already:
                     continue
 
-                # Mark alert as triggered
                 alert.status = AlertStatus.triggered
                 alert.triggered_at = now
 
-                # Send notification
                 booking_url = BOOKING_URLS.get(
                     campground.provider.value, "https://www.recreation.gov"
                 ).format(provider_id=campground.provider_id)
 
-                await send_alert_notification(
-                    user_email=alert.user.email,
+                notification_kwargs = dict(
                     campground_name=campground.name,
                     park_name=campground.park_name,
                     date_from=str(alert.date_from),
@@ -157,20 +167,34 @@ async def scan_campground(ctx: dict[str, Any], campground_id: str) -> dict:
                     booking_url=booking_url,
                 )
 
-                # Log it
-                log = NotificationLog(
-                    alert_id=alert.id,
-                    user_id=alert.user_id,
-                    channel=NotificationChannel.email,
-                    sent_at=now,
-                    payload={
-                        "campground_id": str(campground_id),
-                        "available_sites": len(matching_sites),
-                    },
-                )
-                db.add(log)
+                # Email notification
+                if alert.user.notify_email:
+                    await send_alert_notification(
+                        user_email=alert.user.email,
+                        **notification_kwargs,
+                    )
+                    db.add(NotificationLog(
+                        alert_id=alert.id,
+                        user_id=alert.user_id,
+                        channel=NotificationChannel.email,
+                        sent_at=now,
+                        payload={"campground_id": str(campground_id), "available_sites": len(matching_sites)},
+                    ))
 
-                # Dedup for 30 min so we don't spam
+                # SMS notification
+                if alert.user.notify_sms and alert.user.phone:
+                    await send_sms_notification(
+                        user_phone=alert.user.phone,
+                        **notification_kwargs,
+                    )
+                    db.add(NotificationLog(
+                        alert_id=alert.id,
+                        user_id=alert.user_id,
+                        channel=NotificationChannel.sms,
+                        sent_at=now,
+                        payload={"campground_id": str(campground_id), "available_sites": len(matching_sites)},
+                    ))
+
                 await redis.set(dedup_key, "1", ex=1800)
                 notified += 1
 
@@ -182,6 +206,7 @@ async def scan_campground(ctx: dict[str, Any], campground_id: str) -> dict:
             "available": len(curr_available),
             "newly_available": len(newly_available),
             "alerts_notified": notified,
+            "expired": expired_count,
         }
         logger.info("✅ %s", result)
         return result

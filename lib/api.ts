@@ -33,6 +33,7 @@ export interface User {
   tier: string;
   notify_email: boolean;
   notify_sms: boolean;
+  phone: string | null;
 }
 
 export const auth = {
@@ -49,6 +50,16 @@ export const auth = {
     }),
 
   me: (token: string) => request<User>("/api/auth/me", {}, token),
+
+  updateSettings: (
+    token: string,
+    data: { notify_email?: boolean; notify_sms?: boolean; phone?: string }
+  ) =>
+    request<User>(
+      "/api/auth/me",
+      { method: "PATCH", body: JSON.stringify(data) },
+      token
+    ),
 };
 
 // ── Campgrounds ──────────────────────────────────────────────────────────────

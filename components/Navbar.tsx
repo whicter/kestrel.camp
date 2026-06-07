@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Search, Menu, User, LogOut } from "lucide-react";
+import { Bell, Search, Menu, User, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthModal } from "@/components/AuthModal";
 import { getToken, clearToken } from "@/lib/auth-store";
@@ -74,6 +74,13 @@ export function Navbar() {
                       <p className="text-xs text-muted-foreground">Signed in as</p>
                       <p className="truncate text-sm font-medium text-foreground">{user.email}</p>
                     </div>
+                    <Link
+                      href="/settings"
+                      onClick={() => setUserMenu(false)}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-secondary"
+                    >
+                      <Settings size={14} /> Settings
+                    </Link>
                     <button
                       onClick={handleSignOut}
                       className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-secondary"
@@ -107,9 +114,14 @@ export function Navbar() {
               <Link href="/releasing" className="text-sm font-medium text-foreground" onClick={() => setMenuOpen(false)}>Today&apos;s Releases</Link>
               <Link href="/alerts" className="text-sm font-medium text-foreground" onClick={() => setMenuOpen(false)}>My Alerts</Link>
               {user ? (
-                <button onClick={handleSignOut} className="flex items-center gap-2 text-sm font-medium text-foreground">
-                  <LogOut size={14} /> Sign out
-                </button>
+                <>
+                  <Link href="/settings" className="flex items-center gap-2 text-sm font-medium text-foreground" onClick={() => setMenuOpen(false)}>
+                    <Settings size={14} /> Settings
+                  </Link>
+                  <button onClick={handleSignOut} className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <LogOut size={14} /> Sign out
+                  </button>
+                </>
               ) : (
                 <div className="flex gap-2 pt-2">
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => { setMenuOpen(false); setShowAuth(true); }}>Sign in</Button>

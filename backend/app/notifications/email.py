@@ -35,24 +35,24 @@ Book now before they're gone:
 — Kestrel
 """
 
-    if settings.is_production and settings.sendgrid_api_key:
+    if settings.sendgrid_api_key:
         await _send_sendgrid(user_email, subject, body)
     else:
-        # Development: just log it
         logger.info("📧 [DEV EMAIL] To: %s\nSubject: %s\n%s", user_email, subject, body)
 
 
 async def _send_sendgrid(to: str, subject: str, body: str) -> None:
     try:
         import sendgrid
-        from sendgrid.helpers.mail import Mail, Email, To, Content
+        from sendgrid.helpers.mail import Mail
         sg = sendgrid.SendGridAPIClient(api_key=settings.sendgrid_api_key)
         message = Mail(
-            from_email=Email("alerts@kestrel.camp"),
-            to_emails=To(to),
+            from_email="whicter.han@gmail.com",
+            to_emails=to,
             subject=subject,
-            plain_text_content=Content("text/plain", body),
+            plain_text_content=body,
         )
-        sg.client.mail.send.post(request_body=message.get())
+        resp = sg.client.mail.send.post(request_body=message.get())
+        logger.info("📧 Email sent to %s (status %s)", to, resp.status_code)
     except Exception as e:
         logger.error("SendGrid error: %s", e)
