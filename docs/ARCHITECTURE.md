@@ -11,10 +11,11 @@ Kestrel is a campsite availability alert service. Users set watches on campgroun
 │   Next.js Frontend  │        │           FastAPI Backend            │
 │   (port 3000/3001)  │◄──────►│           (port 8000)                │
 │                     │        │                                      │
-│  /             landing       │  /api/auth          JWT auth         │
+│  /             landing       │  /api/auth          JWT auth + settings
 │  /search       campgrounds   │  /api/campgrounds   search + release │
 │  /alerts       dashboard     │  /api/alerts        CRUD             │
 │  /releasing    drop windows  │  /debug/*           dev tools        │
+│  /settings     user prefs    │                                      │
 └─────────────────────┘        └──────────────┬───────────────────────┘
                                               │
                                ┌──────────────▼───────────────────────┐
@@ -38,6 +39,7 @@ Kestrel is a campsite availability alert service. Users set watches on campgroun
                                │                                      │
                                │  schedule_scans  cron every 2 min   │
                                │  scan_campground  per-campground job │
+                               │  drop window boost: 30s TTL ±30min  │
                                └──────────────┬───────────────────────┘
                                               │
                     ┌─────────────────────────┼──────────────────────┐
@@ -45,7 +47,7 @@ Kestrel is a campsite availability alert service. Users set watches on campgroun
           ┌─────────▼────────┐   ┌────────────▼──────┐   ┌──────────▼───────┐
           │ Recreation.gov   │   │ ReserveCalifornia │   │ BC Parks /       │
           │ (live)           │   │ (live)            │   │ GoingToCamp      │
-          │                  │   │                   │   │ (stub — WAF)     │
+          │ ~1126 campgrounds│   │                   │   │ (stub — WAF)     │
           └──────────────────┘   └───────────────────┘   └──────────────────┘
 ```
 
@@ -59,16 +61,18 @@ kestrel/
 │   ├── page.tsx              # Landing page
 │   ├── search/page.tsx       # Campground search + map
 │   ├── alerts/page.tsx       # User alerts dashboard
-│   └── releasing/page.tsx    # Today's drop windows
+│   ├── releasing/page.tsx    # Today's drop windows
+│   └── settings/page.tsx     # User notification preferences
 ├── components/
-│   ├── Navbar.tsx            # Auth-aware sticky nav
+│   ├── Navbar.tsx            # Auth-aware sticky nav (Settings link)
 │   ├── AuthModal.tsx         # Login / register modal
 │   ├── WatchModal.tsx        # Create alert modal
 │   ├── CampgroundMap.tsx     # Mapbox GL JS map
 │   ├── ProviderBadge.tsx     # Provider color chips
-│   └── AvailabilityDot.tsx   # Status indicator dots
+│   ├── AvailabilityDot.tsx   # Status indicator dots
+│   └── ui/switch.tsx         # Toggle switch component
 ├── lib/
-│   ├── api.ts                # Typed API client
+│   ├── api.ts                # Typed API client (auth.updateSettings)
 │   └── auth-store.ts         # JWT localStorage helpers
 ├── backend/
 │   ├── app/
@@ -81,11 +85,12 @@ kestrel/
 │   │   ├── routers/          # FastAPI route handlers
 │   │   ├── services/         # Auth + alert business logic
 │   │   ├── providers/        # Reservation system adapters
-│   │   ├── workers/          # ARQ scan worker
-│   │   └── notifications/    # Email (SendGrid in prod)
+│   │   ├── workers/          # ARQ scan worker + drop window logic
+│   │   └── notifications/    # Email (SendGrid) + SMS (Twilio)
 │   ├── alembic/              # DB migrations
-│   ├── seed.py               # Dev seed data
-│   └── run_worker.py         # Python 3.12+ worker entry point
+│   ├── seed.py               # Dev seed data (8 campgrounds)
+│   ├── import_recreation_gov.py  # Bulk import ~1126 campgrounds from RIDB
+│   └── run_worker.py         # Python 3.14 compatible worker entry point
 └── docker-compose.yml        # Postgres + Redis
 ```
 
@@ -102,7 +107,7 @@ kestrel/
 | tier | enum | free / pro |
 | notify_email | bool | default true |
 | notify_sms | bool | default false |
-| phone | text nullable | |
+| phone | text nullable | E.164 format e.g. +19256836712 |
 
 ### `campgrounds`
 | Column | Type | Notes |
@@ -112,7 +117,7 @@ kestrel/
 | park_name | text | e.g. "Yosemite National Park" |
 | state_province | text | |
 | country | text | |
-| provider | enum | recreation.gov / reservecalifornia / bc-parks / goingtoccamp / parks-canada / usedirect / reserveamerica |
+| provider | enum | recreation.gov / reservecalifornia / bc-parks / goingtoccamp / parks-canada |
 | provider_id | text | ID in the external system |
 | lat / lng | float | for map display |
 | total_sites | int | |
@@ -130,7 +135,6 @@ kestrel/
 | status | enum | watching / triggered / paused / expired |
 | scan_priority | enum | normal / high |
 | triggered_at | timestamptz | set when first match found |
-| expires_at | timestamptz | optional auto-expiry |
 
 ### `availability_snapshots`
 | Column | Type | Notes |
@@ -158,11 +162,14 @@ kestrel/
 ```
 schedule_scans()  ← cron every 2 minutes
   │
-  ├── Query DB: SELECT DISTINCT campground_id FROM alerts WHERE status='watching'
+  ├── Query DB: SELECT DISTINCT campground_id, provider FROM alerts WHERE status='watching'
   │
   └── For each campground_id:
-        Check Redis lock: scan:lock:{id}  (90s TTL)
-        If locked → skip (scan already running)
+        _in_drop_window(provider, now)?
+          Yes → lock TTL = 30s  (scans every ~30s during drop)
+          No  → lock TTL = 90s  (scans every ~2min normally)
+        Check Redis lock: scan:lock:{id}
+        If locked → skip
         Else → set lock + enqueue scan_campground job
 
 
@@ -170,18 +177,18 @@ scan_campground(campground_id)
   │
   ├── 1. Load Campground from DB
   ├── 2. Load all watching Alerts for this campground
-  ├── 3. Union date range across all alerts (min date_from → max date_to)
+  ├── 2a. Auto-expire alerts where date_to < today → status=expired
+  ├── 3. Union date range across remaining alerts (min date_from → max date_to)
   ├── 4. Call provider adapter → CampgroundAvailability
   ├── 5. Compare with Redis snapshot (scan:snapshot:{id})
   │       curr_available - prev_available = newly_available
-  ├── 6. For each alert:
-  │       Find sites where available_dates overlap alert window
-  │         AND consecutive nights >= alert.nights_min
+  ├── 6. For each alert with matching sites:
   │       Check notif dedup key (notif:dedup:{alert_id}:{sites}, 30min TTL)
   │       If match + not deduped:
   │         → mark alert status=triggered
-  │         → send_alert_notification(email)
-  │         → write NotificationLog
+  │         → send email (if user.notify_email)
+  │         → send SMS   (if user.notify_sms and user.phone)
+  │         → write NotificationLog for each channel
   │         → set dedup key
   ├── 7. Update Redis snapshot (1h TTL)
   ├── 8. Write AvailabilitySnapshot to DB
@@ -192,16 +199,40 @@ scan_campground(campground_id)
 
 ---
 
+## Drop Window Acceleration
+
+During the ±30 minutes around a provider's booking drop time, the scan lock TTL is reduced from 90s to 30s, effectively increasing scan frequency from ~2min to ~30s with zero extra infrastructure.
+
+| Provider | Drop Time (UTC) | Local Time |
+|---|---|---|
+| recreation.gov | 20:00 | 4:00 PM ET |
+| reservecalifornia | 15:00 | 8:00 AM PT |
+| bc-parks | 14:00 | 7:00 AM PT |
+| goingtoccamp | 12:00 | 8:00 AM ET |
+
+---
+
+## Notifications
+
+### Email (SendGrid)
+- Sends whenever `SENDGRID_API_KEY` is set (dev or production)
+- From: `whicter.han@gmail.com` (verified single sender in SendGrid)
+- Falls back to console log if no API key
+
+### SMS (Twilio)
+- Sends if `user.notify_sms=true` and `user.phone` is set
+- From: toll-free `+18449484478` (pending toll-free verification)
+- Falls back to console log if no Twilio credentials
+- Users set phone number in `/settings`
+
+---
+
 ## Provider Adapters
 
 All adapters implement `BaseProvider`:
 
 ```python
 class BaseProvider(ABC):
-    @property
-    @abstractmethod
-    def name(self) -> str: ...
-
     @abstractmethod
     async def get_availability(
         self, provider_id: str, date_from: date, date_to: date
@@ -210,20 +241,32 @@ class BaseProvider(ABC):
 
 ### Recreation.gov (live)
 - **API**: `GET https://www.recreation.gov/api/camps/availability/campground/{id}/month?start_date=...`
+- **Data**: ~1126 campgrounds bulk-imported from RIDB public CSV export (no API key needed)
 - **Strategy**: fetch all months in date range concurrently with `asyncio.gather`
 - **Available**: `site.availabilities[date] == "Available"`
 
 ### ReserveCalifornia (live)
-- **Platform**: Tyler Technologies (formerly ActiveNetwork/UseDirect)
+- **Platform**: Tyler Technologies (UseDirect)
 - **API**: `POST https://california-rdr.prod.cali.rd12.recreation-management.tylerapp.com/rdr/search/grid`
-- **Strategy**: discover facility IDs for the PlaceId via `/rdr/fd/facilities`, then scan each facility in 14-day chunks concurrently
-- **Available**: `unit.Slices[date].IsFree == true`
-- **IDs**: `provider_id` is the PlaceId (park), not the FacilityId (loop) — e.g. Pfeiffer Big Sur = `690`
+- **Strategy**: discover facility IDs for PlaceId via `/rdr/fd/facilities`, scan each in 14-day chunks
+- **IDs**: `provider_id` is the PlaceId (park), e.g. Pfeiffer Big Sur = `690`
 
 ### BC Parks / GoingToCamp (stubs)
-- Both platforms are behind Azure WAF with CAPTCHA — direct HTTP requests are blocked
-- Adapters return empty availability gracefully; system skips notification
-- Path to fix: replace with Playwright headless browser scraping
+- Both behind Azure WAF with CAPTCHA — direct HTTP requests are blocked
+- Return empty availability gracefully; no notifications fired
+- Path to fix: Playwright headless browser scraping
+
+---
+
+## Campground Data
+
+Recreation.gov campgrounds are imported via `backend/import_recreation_gov.py`:
+- Downloads `RIDBFullExport_V1_CSV.zip` (~244MB) from `ridb.recreation.gov/download`
+- No API key required
+- Joins `Facilities_API_v1.csv` + `FacilityAddresses_API_v1.csv` + `RecAreas_API_v1.csv`
+- Filters: reservable + US state + has lat/lng coordinates
+- Result: ~1126 campgrounds
+- Safe to re-run (upserts by provider_id)
 
 ---
 
@@ -233,7 +276,8 @@ class BaseProvider(ABC):
 - Login: verify bcrypt → JWT
 - All alert endpoints: `Authorization: Bearer <token>` → `current_user` FastAPI dependency
 - Frontend: token stored in `localStorage`, sent in every API call via `lib/api.ts`
-- JWT expiry: 7 days (configurable via `JWT_EXPIRE_DAYS`)
+- JWT expiry: 7 days (configurable via `ACCESS_TOKEN_EXPIRE_MINUTES`)
+- Settings update: `PATCH /api/auth/me` — updates phone, notify_email, notify_sms
 
 ---
 
@@ -269,18 +313,24 @@ class BaseProvider(ABC):
 
 ### Backend (`backend/.env`)
 ```
-DATABASE_URL=postgresql+asyncpg://kestrel:kestrel@localhost:5433/kestrel
-REDIS_URL=redis://localhost:6379
-JWT_SECRET=change-me-in-production
-JWT_EXPIRE_DAYS=7
-IS_PRODUCTION=false
-FRONTEND_URL=http://localhost:3000
-SENDGRID_API_KEY=           # required in production
-FROM_EMAIL=alerts@kestrel.camp
+DATABASE_URL=postgresql+asyncpg://kestrel:secret@localhost:5433/kestrel
+REDIS_URL=redis://localhost:6379/0
+SECRET_KEY=change-me-in-production
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
+ENVIRONMENT=development
+FRONTEND_URL=http://localhost:3001
+
+# Email (SendGrid) — sends when set, regardless of ENVIRONMENT
+SENDGRID_API_KEY=SG.xxx
+
+# SMS (Twilio) — sends when set and user has phone + notify_sms=true
+TWILIO_ACCOUNT_SID=ACxxx
+TWILIO_AUTH_TOKEN=xxx
+TWILIO_FROM_NUMBER=+1xxxxxxxxxx
 ```
 
 ### Frontend (`.env.local`)
 ```
 NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_MAPBOX_TOKEN=   # get from mapbox.com
+NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1...   # get from mapbox.com
 ```

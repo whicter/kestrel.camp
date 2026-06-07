@@ -5,7 +5,7 @@
 - Node.js 20+
 - Python 3.12+ (project uses 3.14)
 - Docker Desktop (for Postgres + Redis)
-- A Mapbox account (free tier works) — optional, for the map view
+- A Mapbox account (free tier) — optional, for the map view
 
 ---
 
@@ -34,8 +34,8 @@ pip install -r requirements.txt
 docker compose up -d
 ```
 
-This starts:
-- PostgreSQL 16 on port **5433** (not 5432 — avoids conflict with any local postgres)
+Starts:
+- PostgreSQL 16 on port **5433** (not 5432 — avoids conflict with local postgres)
 - Redis 7 on port **6379**
 
 ---
@@ -44,21 +44,27 @@ This starts:
 
 **Backend** — create `backend/.env`:
 ```
-DATABASE_URL=postgresql+asyncpg://kestrel:kestrel@localhost:5433/kestrel
-REDIS_URL=redis://localhost:6379
-JWT_SECRET=dev-secret-change-in-prod
-JWT_EXPIRE_DAYS=7
-IS_PRODUCTION=false
-FRONTEND_URL=http://localhost:3000
+DATABASE_URL=postgresql+asyncpg://kestrel:secret@localhost:5433/kestrel
+REDIS_URL=redis://localhost:6379/0
+SECRET_KEY=change-me-in-production
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
+ENVIRONMENT=development
+FRONTEND_URL=http://localhost:3001
+
+# Email — get free API key at sendgrid.com (100 emails/day free)
+SENDGRID_API_KEY=
+
+# SMS — get credentials at twilio.com
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_FROM_NUMBER=
 ```
 
-**Frontend** — edit `.env.local` (already exists):
+**Frontend** — create `.env.local`:
 ```
 NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1...   # paste your token here
+NEXT_PUBLIC_MAPBOX_TOKEN=   # get from mapbox.com → Account → Tokens
 ```
-
-Get a Mapbox token at [mapbox.com](https://mapbox.com) → Account → Tokens. The free tier is sufficient.
 
 ---
 
@@ -72,21 +78,53 @@ alembic upgrade head
 
 ---
 
-## 5. Seed campground data
+## 5. Import campground data
 
+**Option A — Full Recreation.gov bulk import (~1126 campgrounds, recommended):**
+```bash
+cd backend
+source .venv/bin/activate
+python import_recreation_gov.py
+```
+Downloads the RIDB public CSV export (~244MB) from `ridb.recreation.gov/download`. No API key needed. Safe to re-run (upserts by provider_id).
+
+**Option B — Minimal seed data (8 campgrounds, for quick dev):**
 ```bash
 cd backend
 source .venv/bin/activate
 python seed.py
 ```
 
-Seeds 8 campgrounds across 4 providers (Yosemite, Grand Canyon, Crater Lake, Pfeiffer Big Sur, Julia Pfeiffer Burns, Rubble Creek, Canisbay Lake, Samuel P. Taylor).
+---
+
+## 6. Set up notifications
+
+### Email (SendGrid)
+1. Sign up at [sendgrid.com](https://sendgrid.com) — free tier (100 emails/day)
+2. Settings → API Keys → Create API Key (Full Access) → copy key
+3. Settings → Sender Authentication → Single Sender Verification → add your sender email
+4. Add to `backend/.env`: `SENDGRID_API_KEY=SG.xxx`
+
+Email sends automatically whenever the API key is set (dev or production).
+
+### SMS (Twilio)
+1. Sign up at [twilio.com](https://twilio.com)
+2. Buy a toll-free number (recommended for US compliance)
+3. Submit toll-free verification in Twilio console → Messaging → Regulatory Compliance
+4. Add to `backend/.env`:
+   ```
+   TWILIO_ACCOUNT_SID=ACxxx
+   TWILIO_AUTH_TOKEN=xxx
+   TWILIO_FROM_NUMBER=+1xxxxxxxxxx
+   ```
+
+Users enable SMS and enter their phone number in `/settings`.
 
 ---
 
-## 6. Start all services
+## 7. Start all services
 
-Open four terminal tabs:
+Open three terminal tabs:
 
 **Tab 1 — FastAPI**
 ```bash
@@ -108,16 +146,11 @@ python run_worker.py
 npm run dev
 ```
 
-**Tab 4 — (optional) watch worker logs**
-```bash
-tail -f /tmp/kestrel-worker.log
-```
-
-Open **http://localhost:3000**.
+Open **http://localhost:3001**.
 
 ---
 
-## 7. Basic usage
+## 8. Basic usage
 
 ### Create an account
 Click **Get started** in the top nav → register with any email + password.
@@ -126,13 +159,18 @@ Click **Get started** in the top nav → register with any email + password.
 Go to **Search** → type a park or campground name → click **Watch** on any result.
 
 ### Set an alert
-Pick a date range and minimum nights → **Create alert**. The worker will scan every 2 minutes and email you when a site opens.
+Pick a date range and minimum nights → **Create alert**. The worker scans every 2 minutes and notifies you when a site opens.
 
 ### Check your alerts
-Go to **Alerts** → see status (Watching / Triggered / Paused). Pause or delete at any time.
+Go to **My Alerts** → see status (Watching / Available / Paused / Expired). Pause or delete at any time.
+
+Alerts auto-expire when `date_to` passes — no manual cleanup needed.
 
 ### Today's Releases
-Go to **Releasing** → see which campgrounds have booking windows opening today, what date is becoming bookable, and what time the drop happens. Click **Set alert** on any entry to watch it.
+Go to **Releasing** → see which campgrounds have booking windows opening today, what date becomes bookable, and the drop time. Click **Set alert** to watch it.
+
+### Notification settings
+Click your username in the nav → **Settings** → toggle email/SMS and enter your phone number.
 
 ---
 
@@ -140,7 +178,6 @@ Go to **Releasing** → see which campgrounds have booking windows opening today
 
 ### Trigger a manual scan
 ```bash
-# Replace <campground_id> with a real UUID from the DB
 curl -X POST http://localhost:8000/debug/scan/<campground_id>
 ```
 
@@ -149,7 +186,7 @@ curl -X POST http://localhost:8000/debug/scan/<campground_id>
 curl http://localhost:8000/debug/campgrounds
 ```
 
-### API docs
+### API docs (Swagger UI)
 ```
 http://localhost:8000/docs
 ```
@@ -158,13 +195,14 @@ http://localhost:8000/docs
 
 ## Production checklist
 
-- Set `IS_PRODUCTION=true` in backend env
-- Set a strong `JWT_SECRET`
-- Set `SENDGRID_API_KEY` and `FROM_EMAIL` for real email delivery
-- Set `FRONTEND_URL` to your actual domain for CORS
-- Change Postgres port mapping back to 5432 (or use a managed DB)
-- Run worker with a process manager (systemd, supervisord, or Docker)
-- Add `NEXT_PUBLIC_MAPBOX_TOKEN` to your hosting environment
+- [ ] Set `ENVIRONMENT=production` in backend env
+- [ ] Set a strong random `SECRET_KEY` (`openssl rand -hex 32`)
+- [ ] Set `SENDGRID_API_KEY` and verify sender domain (not single sender) for better deliverability
+- [ ] Set Twilio credentials + complete toll-free verification
+- [ ] Set `FRONTEND_URL` to your actual domain for CORS
+- [ ] Run the bulk import: `python import_recreation_gov.py`
+- [ ] Run worker with a process manager (systemd, supervisord, or Docker)
+- [ ] Add `NEXT_PUBLIC_MAPBOX_TOKEN` to your hosting environment
 
 ---
 
@@ -172,8 +210,10 @@ http://localhost:8000/docs
 
 | Problem | Fix |
 |---|---|
-| `role "kestrel" does not exist` | Local Postgres intercepting port 5432 — make sure Docker maps to 5433 |
+| `role "kestrel" does not exist` | Local Postgres on port 5432 intercepting — check Docker maps to 5433 |
 | `No module named 'greenlet'` | `pip install greenlet` |
-| Worker crashes on startup | Python 3.12+ requires `run_worker.py` (not `arq app.workers.main.WorkerSettings` directly) |
+| Worker crashes on startup | Use `python run_worker.py` (not `arq` CLI directly — Python 3.14 needs manual event loop) |
 | Map shows placeholder | Add `NEXT_PUBLIC_MAPBOX_TOKEN` to `.env.local` and restart dev server |
-| BC Parks / GoingToCamp always show 0 sites | Azure WAF blocks server-side requests — these providers are stubs pending Playwright integration |
+| BC Parks / GoingToCamp always 0 | Azure WAF blocks server-side requests — stubs until Playwright integration |
+| SMS error 30032 | Toll-free number not yet verified — submit verification in Twilio console |
+| Email 403 Forbidden | Sender email not verified in SendGrid — complete Single Sender Verification |
