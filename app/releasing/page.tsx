@@ -6,7 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { ProviderBadge } from "@/components/ProviderBadge";
 import { AuthModal } from "@/components/AuthModal";
 import { WatchModal } from "@/components/WatchModal";
-import { campgrounds as campgroundsApi, type ReleasingCampground, type Campground } from "@/lib/api";
+import { campgrounds as campgroundsApi, providerUrl, type ReleasingCampground, type Campground } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays, Clock, ExternalLink, Zap, Loader2 } from "lucide-react";
 
@@ -154,10 +154,13 @@ export default function ReleasingPage() {
             </div>
 
             <div className="flex flex-col gap-2">
-              {releases.map((r) => (
+              {releases.map((r) => {
+                const extUrl = providerUrl(r.provider, r.provider_id);
+                return (
                 <div
                   key={r.id}
-                  className="group flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-4 shadow-sm transition-shadow hover:shadow-md"
+                  onClick={() => extUrl && window.open(extUrl, "_blank", "noopener,noreferrer")}
+                  className={`group flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-4 shadow-sm transition-shadow hover:shadow-md ${extUrl ? "cursor-pointer" : ""}`}
                 >
                   {/* Pulsing dot */}
                   <div className="flex shrink-0 flex-col items-center gap-1.5">
@@ -205,7 +208,7 @@ export default function ReleasingPage() {
                   <div className="flex shrink-0 items-center gap-3">
                     <ProviderBadge provider={r.provider as never} className="hidden sm:inline-flex" />
                     <button
-                      onClick={() => setWatching(toWatchable(r))}
+                      onClick={(e) => { e.stopPropagation(); setWatching(toWatchable(r)); }}
                       className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-secondary"
                     >
                       Set alert
@@ -213,7 +216,8 @@ export default function ReleasingPage() {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
 
               {!loading && releases.length === 0 && (
                 <div className="flex flex-col items-center gap-3 py-20 text-center">

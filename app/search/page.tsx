@@ -6,10 +6,10 @@ import { Navbar } from "@/components/Navbar";
 import { ProviderBadge } from "@/components/ProviderBadge";
 import { AuthModal } from "@/components/AuthModal";
 import { WatchModal } from "@/components/WatchModal";
-import { campgrounds as campgroundsApi, type Campground } from "@/lib/api";
+import { campgrounds as campgroundsApi, providerUrl, type Campground } from "@/lib/api";
 import {
-  Search, SlidersHorizontal, MapPin, ChevronRight,
-  Map, List, CalendarDays, Clock, Loader2, Bell,
+  Search, SlidersHorizontal, MapPin, ExternalLink,
+  Map, List, Clock, Loader2, Bell,
 } from "lucide-react";
 import { CampgroundMap } from "@/components/CampgroundMap";
 
@@ -89,42 +89,55 @@ export default function SearchPage() {
             </div>
 
             <div className="flex flex-col">
-              {results.map((r) => (
-                <div key={r.id} className="group border-b border-border px-4 py-4 transition-colors hover:bg-secondary/50 sm:px-6">
-                  <div className="flex items-start gap-3">
-                    <MapPin size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{r.name}</p>
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                            {r.park_name} · {r.state_province}
-                          </p>
-                        </div>
-                        <ChevronRight size={14} className="mt-0.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                      </div>
-
-                      <div className="mt-2.5 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <ProviderBadge provider={r.provider as never} />
-                          {r.total_sites && (
-                            <span className="text-xs text-muted-foreground">{r.total_sites} sites</span>
+              {results.map((r) => {
+                const extUrl = providerUrl(r.provider, r.provider_id);
+                return (
+                  <div
+                    key={r.id}
+                    onClick={() => setWatching(r)}
+                    className="group cursor-pointer border-b border-border px-4 py-4 transition-colors hover:bg-secondary/50 sm:px-6"
+                  >
+                    <div className="flex items-start gap-3">
+                      <MapPin size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{r.name}</p>
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                              {r.park_name} · {r.state_province}
+                            </p>
+                          </div>
+                          {extUrl && (
+                            <a
+                              href={extUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+                            >
+                              <ExternalLink size={13} />
+                            </a>
                           )}
                         </div>
 
-                        {/* Watch button */}
-                        <button
-                          onClick={() => setWatching(r)}
-                          className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                        >
-                          <Bell size={11} style={{ color: "var(--watching)" }} />
-                          Watch
-                        </button>
+                        <div className="mt-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <ProviderBadge provider={r.provider as never} />
+                            {r.total_sites && (
+                              <span className="text-xs text-muted-foreground">{r.total_sites} sites</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+                            <Bell size={11} style={{ color: "var(--watching)" }} />
+                            Watch
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {!loading && results.length === 0 && (
                 <div className="flex flex-col items-center gap-3 py-20 text-center">
