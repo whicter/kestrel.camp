@@ -18,14 +18,16 @@ Click **Get started** in the top navigation bar. Enter your email and a password
 
 ### 2. Find a campground / 搜索营地
 
-Go to **Search**. Type a campground or park name (e.g. "Yosemite", "Upper Pines").
+Go to **Search**. Type a campground or park name (e.g. "Yosemite", "Upper Pines", "Henry Cowell").
 
-点击 **Search**，输入营地或公园名称（如 "Yosemite"、"Upper Pines"）进行搜索。
+点击 **Search**，输入营地或公园名称进行搜索。
 
-- Results show as a list and on the map.
-  搜索结果以列表和地图两种形式展示。
-- Click a map pin or the **Watch** button to set an alert.
-  点击地图标记或 **Watch** 按钮即可创建提醒。
+- Results appear as a list and on the map
+  搜索结果以列表和地图两种形式展示
+- Hover a row to see the external booking link
+  悬停行可看到官网外链图标
+- Click anywhere on a row to open the Watch modal
+  点击行任意位置打开提醒设置窗口
 
 ---
 
@@ -56,14 +58,14 @@ Go to **My Alerts** to see all active watches.
 
 | Status / 状态 | Meaning / 含义 |
 |---|---|
-| Watching / 监控中 | Scanning every 2 minutes |
+| Watching / 监控中 | Scanning every ~2 minutes |
 | Available / 有空位 | Site opened — book now! |
 | Paused / 已暂停 | Manually paused |
 | Expired / 已过期 | Date range has passed |
 
-You can **Pause** or **Delete** any alert at any time.
+You can **Pause** or **Delete** any alert at any time. Alerts auto-expire when `date_to` passes.
 
-随时可以**暂停**或**删除**提醒。
+随时可以**暂停**或**删除**提醒。退房日期过后提醒自动过期，无需手动清理。
 
 ---
 
@@ -74,17 +76,16 @@ Go to **Releasing** to see campgrounds whose booking windows open today.
 进入 **Releasing** 查看今天开放预订窗口的营地。
 
 Each row shows:
-每行显示：
-
 - Which campsite date becomes bookable today
-  今天起可预订哪个日期的营地
 - The exact drop time (e.g. 4:00 PM ET for Recreation.gov)
-  具体开放时间（如 Recreation.gov 为美东时间下午4点）
 - A **Set alert** button to start watching immediately
-  **Set alert** 按钮，一键开始监控
+- Click the row to go directly to the official booking page
 
-> **Tip / 提示**: Kestrel automatically increases scan frequency to every 30 seconds during the ±30 minutes around a drop time.
-> Kestrel 会在开放时间前后 30 分钟内自动将扫描频率提升至每 30 秒一次。
+每行显示今天起可预订的营地日期、具体开放时间，以及一键跳转官网的链接。
+
+> **Tip**: Set your alert the day before a popular campground opens — Kestrel automatically increases scan frequency to every 30 seconds during the ±30 minutes around drop time.
+>
+> **提示**：在热门营地开放前一天设置提醒，Kestrel 会在开放时间前后 30 分钟内自动将扫描频率提升至每 30 秒一次。
 
 ---
 
@@ -94,14 +95,12 @@ Click your username in the top nav → **Settings**.
 
 点击顶部导航栏用户名 → **Settings**。
 
-- **Email alerts**: on by default. You'll get an email when a site opens.
-  **邮件提醒**：默认开启，有空位时发送邮件。
-- **SMS alerts**: toggle on, then enter your phone number (E.164 format, e.g. `+14155550100`).
-  **短信提醒**：开启后输入手机号（E.164 格式，如 `+14155550100`）。
+- **Email alerts**: on by default
+  **邮件提醒**：默认开启
+- **SMS alerts**: toggle on → enter phone number in E.164 format (e.g. `+14155550100`)
+  **短信提醒**：开启后输入手机号（E.164 格式，如 `+14155550100`）
 
 Click **Save preferences**.
-
-点击 **Save preferences** 保存。
 
 ---
 
@@ -112,10 +111,6 @@ Click **Save preferences**.
 | Normal / 平时 | Every ~2 minutes / 约每 2 分钟 |
 | During booking drop window / 开放预订时段 | Every ~30 seconds / 约每 30 秒 |
 
-Once a site opens, you'll receive a notification within one scan cycle.
-
-一旦有空位，你将在下一个扫描周期内收到通知。
-
 ---
 
 ## Supported providers / 支持的预订平台
@@ -123,20 +118,30 @@ Once a site opens, you'll receive a notification within one scan cycle.
 | Provider | Coverage / 覆盖范围 |
 |---|---|
 | Recreation.gov | ~1,100+ US federal campgrounds / 1100+ 个美国联邦营地 |
-| ReserveCalifornia | California state parks / 加州州立公园 |
+| ReserveCalifornia | 115 California state parks / 115 个加州州立公园 |
 
 ---
 
 ## Tips / 使用技巧
 
-- **Set multiple alerts** for flexibility — e.g. watch the same campground for several different date ranges.
-  **设置多个提醒**——例如对同一营地设置多个不同日期段的监控，提高成功率。
+- **Set multiple alerts** for the same campground with different date ranges to improve your chances.
+  **对同一营地设置多个不同日期段的提醒**，提高成功率。
 
-- **Use "Minimum nights"** to avoid being notified for a single night when you need three.
-  **使用"最少夜数"**——避免只有一晚空位时收到通知，而你需要连续住三晚。
+- **Use "Minimum nights"** so you're only notified when enough consecutive nights are open.
+  **使用"最少夜数"**，只在有足够连续空位时才收到通知。
 
-- **Watch the Releasing page** the day before a popular campground opens — set your alert in advance so Kestrel is ready at drop time.
-  **提前关注 Releasing 页面**——在热门营地开放预订的前一天设置提醒，让 Kestrel 在开放瞬间就开始监控。
+- **Watch the Releasing page** the day before a popular campground opens.
+  **提前关注 Releasing 页面**，在开放前一天就设好提醒。
 
-- **Alerts auto-expire** once the check-out date passes. No manual cleanup needed.
-  **提醒自动过期**——退房日期过后自动失效，无需手动清理。
+---
+
+## Admin Panel / 管理后台
+
+Admin users can access `/admin` to view:
+- Total users, campgrounds, alerts (active and total)
+- Campground breakdown by provider
+- Full user list with tier and alert count
+
+Admin access is granted manually — contact the site owner.
+
+管理员可访问 `/admin` 查看用户、营地和提醒的统计数据。管理员权限需由站长手动授予。

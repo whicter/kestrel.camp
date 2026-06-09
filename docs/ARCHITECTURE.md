@@ -9,18 +9,22 @@ Kestrel is a campsite availability alert service. Users set watches on campgroun
 ```
 ┌─────────────────────┐        ┌──────────────────────────────────────┐
 │   Next.js Frontend  │        │           FastAPI Backend            │
-│   (port 3000/3001)  │◄──────►│           (port 8000)                │
+│   (Vercel)          │◄──────►│           (Railway)                  │
 │                     │        │                                      │
-│  /             landing       │  /api/auth          JWT auth + settings
-│  /search       campgrounds   │  /api/campgrounds   search + release │
+│  /             landing       │  /api/auth          JWT auth         │
+│  /search       campgrounds   │  /api/campgrounds   search + releases│
 │  /alerts       dashboard     │  /api/alerts        CRUD             │
-│  /releasing    drop windows  │  /debug/*           dev tools        │
-│  /settings     user prefs    │                                      │
+│  /releasing    drop windows  │  /api/admin         admin only       │
+│  /settings     user prefs    │  /debug/*           dev tools        │
+│  /admin        admin panel   │                                      │
 └─────────────────────┘        └──────────────┬───────────────────────┘
-                                              │
+         │                                    │
+         │ Sentry (JS errors)                 │ Sentry (exceptions)
+         ▼                                    ▼
+  sentry.io                           sentry.io
+
                                ┌──────────────▼───────────────────────┐
-                               │         PostgreSQL 16                │
-                               │         (port 5433 in Docker)        │
+                               │         PostgreSQL 16 (Railway)      │
                                │                                      │
                                │  users              campgrounds      │
                                │  alerts             availability_    │
@@ -28,14 +32,14 @@ Kestrel is a campsite availability alert service. Users set watches on campgroun
                                └──────────────────────────────────────┘
                                               │
                                ┌──────────────▼───────────────────────┐
-                               │          Redis 7 (port 6379)         │
+                               │          Redis (Railway)             │
                                │                                      │
                                │  ARQ job queue      scan snapshots   │
                                │  scan locks         notif dedup      │
                                └──────────────┬───────────────────────┘
                                               │
                                ┌──────────────▼───────────────────────┐
-                               │          ARQ Worker                  │
+                               │          ARQ Worker (Railway)        │
                                │                                      │
                                │  schedule_scans  cron every 2 min   │
                                │  scan_campground  per-campground job │
@@ -47,7 +51,7 @@ Kestrel is a campsite availability alert service. Users set watches on campgroun
           ┌─────────▼────────┐   ┌────────────▼──────┐   ┌──────────▼───────┐
           │ Recreation.gov   │   │ ReserveCalifornia │   │ BC Parks /       │
           │ (live)           │   │ (live)            │   │ GoingToCamp      │
-          │ ~1126 campgrounds│   │                   │   │ (stub — WAF)     │
+          │ ~1126 campgrounds│   │ 115 CA parks      │   │ (stub — WAF)     │
           └──────────────────┘   └───────────────────┘   └──────────────────┘
 ```
 
@@ -57,41 +61,52 @@ Kestrel is a campsite availability alert service. Users set watches on campgroun
 
 ```
 kestrel/
-├── app/                      # Next.js App Router pages
-│   ├── page.tsx              # Landing page
-│   ├── search/page.tsx       # Campground search + map
-│   ├── alerts/page.tsx       # User alerts dashboard
-│   ├── releasing/page.tsx    # Today's drop windows
-│   └── settings/page.tsx     # User notification preferences
+├── app/                        # Next.js App Router pages
+│   ├── page.tsx                # Landing page
+│   ├── search/page.tsx         # Campground search + map
+│   ├── alerts/page.tsx         # User alerts dashboard
+│   ├── releasing/page.tsx      # Today's drop windows
+│   ├── settings/page.tsx       # User notification preferences
+│   └── admin/page.tsx          # Admin dashboard (is_admin only)
 ├── components/
-│   ├── Navbar.tsx            # Auth-aware sticky nav (Settings link)
-│   ├── AuthModal.tsx         # Login / register modal
-│   ├── WatchModal.tsx        # Create alert modal
-│   ├── CampgroundMap.tsx     # Mapbox GL JS map
-│   ├── ProviderBadge.tsx     # Provider color chips
-│   ├── AvailabilityDot.tsx   # Status indicator dots
-│   └── ui/switch.tsx         # Toggle switch component
+│   ├── Navbar.tsx              # Auth-aware sticky nav
+│   ├── AuthModal.tsx           # Login / register modal
+│   ├── WatchModal.tsx          # Create alert modal
+│   ├── CampgroundMap.tsx       # Mapbox GL JS map
+│   ├── ProviderBadge.tsx       # Provider color chips
+│   └── AvailabilityDot.tsx     # Status indicator dots
 ├── lib/
-│   ├── api.ts                # Typed API client (auth.updateSettings)
-│   └── auth-store.ts         # JWT localStorage helpers
+│   ├── api.ts                  # Typed API client
+│   └── auth-store.ts           # JWT localStorage helpers
+├── sentry.client.config.ts     # Sentry browser config
+├── sentry.server.config.ts     # Sentry Node.js config
+├── sentry.edge.config.ts       # Sentry edge runtime config
+├── instrumentation.ts          # Next.js instrumentation hook
 ├── backend/
 │   ├── app/
-│   │   ├── main.py           # FastAPI app + CORS
-│   │   ├── config.py         # pydantic-settings (.env)
-│   │   ├── database.py       # async SQLAlchemy engine
-│   │   ├── deps.py           # current_user dependency
-│   │   ├── models/           # SQLAlchemy ORM models
-│   │   ├── schemas/          # Pydantic response schemas
-│   │   ├── routers/          # FastAPI route handlers
-│   │   ├── services/         # Auth + alert business logic
-│   │   ├── providers/        # Reservation system adapters
-│   │   ├── workers/          # ARQ scan worker + drop window logic
-│   │   └── notifications/    # Email (SendGrid) + SMS (Twilio)
-│   ├── alembic/              # DB migrations
-│   ├── seed.py               # Dev seed data (8 campgrounds)
-│   ├── import_recreation_gov.py  # Bulk import ~1126 campgrounds from RIDB
-│   └── run_worker.py         # Python 3.14 compatible worker entry point
-└── docker-compose.yml        # Postgres + Redis
+│   │   ├── main.py             # FastAPI app + CORS + Sentry init
+│   │   ├── config.py           # pydantic-settings (.env)
+│   │   ├── database.py         # async SQLAlchemy engine
+│   │   ├── deps.py             # current_user + admin_user dependencies
+│   │   ├── models/             # SQLAlchemy ORM models
+│   │   ├── schemas/            # Pydantic response schemas
+│   │   ├── routers/
+│   │   │   ├── auth.py         # register / login / me / settings
+│   │   │   ├── campgrounds.py  # search + releasing-today
+│   │   │   ├── alerts.py       # CRUD for user alerts
+│   │   │   ├── admin.py        # /api/admin/* (admin only)
+│   │   │   └── debug.py        # dev-only tools
+│   │   ├── services/           # Auth business logic
+│   │   ├── providers/          # Reservation system adapters
+│   │   ├── workers/            # ARQ scan worker
+│   │   └── notifications/      # Email (SendGrid) + SMS (Twilio)
+│   ├── alembic/                # DB migrations
+│   ├── seed.py                 # Dev seed data (8 campgrounds)
+│   ├── import_recreation_gov.py      # Bulk import ~1126 campgrounds
+│   ├── import_reserve_california.py  # Import 115 CA state parks
+│   ├── make_admin.py           # Grant admin to a user by email
+│   └── run_worker.py           # ARQ worker entry point
+└── docker-compose.yml          # Local Postgres + Redis
 ```
 
 ---
@@ -105,9 +120,10 @@ kestrel/
 | email | text unique | |
 | password_hash | text | bcrypt |
 | tier | enum | free / pro |
+| is_admin | bool | default false |
 | notify_email | bool | default true |
 | notify_sms | bool | default false |
-| phone | text nullable | E.164 format e.g. +19256836712 |
+| phone | text nullable | E.164 format e.g. +14155550100 |
 
 ### `campgrounds`
 | Column | Type | Notes |
@@ -117,7 +133,7 @@ kestrel/
 | park_name | text | e.g. "Yosemite National Park" |
 | state_province | text | |
 | country | text | |
-| provider | enum | recreation.gov / reservecalifornia / bc-parks / goingtoccamp / parks-canada |
+| provider | enum | recreation.gov / reservecalifornia / bc-parks / ... |
 | provider_id | text | ID in the external system |
 | lat / lng | float | for map display |
 | total_sites | int | |
@@ -133,7 +149,7 @@ kestrel/
 | nights_min | int | minimum consecutive nights required |
 | site_type | enum | any / tent / rv / cabin |
 | status | enum | watching / triggered / paused / expired |
-| scan_priority | enum | normal / high |
+| scan_priority | enum | normal / fast / slow |
 | triggered_at | timestamptz | set when first match found |
 
 ### `availability_snapshots`
@@ -162,7 +178,7 @@ kestrel/
 ```
 schedule_scans()  ← cron every 2 minutes
   │
-  ├── Query DB: SELECT DISTINCT campground_id, provider FROM alerts WHERE status='watching'
+  ├── Query DB: SELECT DISTINCT campground_id FROM alerts WHERE status='watching'
   │
   └── For each campground_id:
         _in_drop_window(provider, now)?
@@ -195,13 +211,13 @@ scan_campground(campground_id)
   └── 9. Update campground.last_scanned_at
 ```
 
-**Key design**: N users watching the same campground → **1 HTTP request** to the provider. The lock + snapshot are per-campground, not per-alert.
+**Key design**: N users watching the same campground → **1 HTTP request** to the provider.
 
 ---
 
 ## Drop Window Acceleration
 
-During the ±30 minutes around a provider's booking drop time, the scan lock TTL is reduced from 90s to 30s, effectively increasing scan frequency from ~2min to ~30s with zero extra infrastructure.
+During the ±30 minutes around a provider's booking drop time, the scan lock TTL drops from 90s to 30s, tripling scan frequency with zero extra infrastructure.
 
 | Provider | Drop Time (UTC) | Local Time |
 |---|---|---|
@@ -212,18 +228,53 @@ During the ±30 minutes around a provider's booking drop time, the scan lock TTL
 
 ---
 
+## Admin
+
+### Dashboard (`/admin`)
+Accessible only to users with `is_admin=true`. Shows:
+- Total users, campgrounds, active alerts, total alerts
+- Campground count by provider
+- Full user list with tier, alert count, join date
+
+### API endpoints
+- `GET /api/admin/stats` — aggregate counts
+- `GET /api/admin/users` — user list with alert counts
+
+Both require the `admin_user` FastAPI dependency (403 if not admin).
+
+### Granting admin
+```bash
+cd backend
+source .venv/bin/activate
+python make_admin.py user@example.com
+```
+
+---
+
+## Monitoring (Sentry)
+
+**Frontend** — configured in `sentry.client.config.ts` / `sentry.server.config.ts` / `sentry.edge.config.ts`:
+- Captures unhandled JS errors and React exceptions
+- Session replay: 100% on error, 5% random
+- Source maps uploaded at build via `withSentryConfig` in `next.config.ts`
+- Initialized via `instrumentation.ts` (Next.js 16 hook)
+
+**Backend** — initialized in `app/main.py` if `SENTRY_DSN` is set:
+- Captures unhandled FastAPI exceptions with full stack traces
+- 20% trace sampling
+
+---
+
 ## Notifications
 
 ### Email (SendGrid)
-- Sends whenever `SENDGRID_API_KEY` is set (dev or production)
-- From: `whicter.han@gmail.com` (verified single sender in SendGrid)
-- Falls back to console log if no API key
+- Sends whenever `SENDGRID_API_KEY` is set
+- Falls back to console log in dev
 
 ### SMS (Twilio)
 - Sends if `user.notify_sms=true` and `user.phone` is set
 - From: toll-free `+18449484478` (pending toll-free verification)
-- Falls back to console log if no Twilio credentials
-- Users set phone number in `/settings`
+- Falls back to console log if no credentials
 
 ---
 
@@ -239,98 +290,54 @@ class BaseProvider(ABC):
     ) -> CampgroundAvailability: ...
 ```
 
-### Recreation.gov (live)
-- **API**: `GET https://www.recreation.gov/api/camps/availability/campground/{id}/month?start_date=...`
-- **Data**: ~1126 campgrounds bulk-imported from RIDB public CSV export (no API key needed)
+### Recreation.gov (live, ~1126 campgrounds)
+- **API**: `GET https://www.recreation.gov/api/camps/availability/campground/{id}/month`
+- **Data**: bulk-imported from RIDB public CSV (no API key needed)
 - **Strategy**: fetch all months in date range concurrently with `asyncio.gather`
-- **Available**: `site.availabilities[date] == "Available"`
 
-### ReserveCalifornia (live)
+### ReserveCalifornia (live, 115 CA state parks)
 - **Platform**: Tyler Technologies (UseDirect)
-- **API**: `POST https://california-rdr.prod.cali.rd12.recreation-management.tylerapp.com/rdr/search/grid`
-- **Strategy**: discover facility IDs for PlaceId via `/rdr/fd/facilities`, scan each in 14-day chunks
-- **IDs**: `provider_id` is the PlaceId (park), e.g. Pfeiffer Big Sur = `690`
+- **API**: `POST .../rdr/search/grid`
+- **Strategy**: discover facility IDs via `/rdr/fd/facilities`, scan in 14-day chunks
+- **provider_id** = PlaceId (park-level)
 
 ### BC Parks / GoingToCamp (stubs)
-- Both behind Azure WAF with CAPTCHA — direct HTTP requests are blocked
-- Return empty availability gracefully; no notifications fired
-- Path to fix: Playwright headless browser scraping
-
----
-
-## Campground Data
-
-Recreation.gov campgrounds are imported via `backend/import_recreation_gov.py`:
-- Downloads `RIDBFullExport_V1_CSV.zip` (~244MB) from `ridb.recreation.gov/download`
-- No API key required
-- Joins `Facilities_API_v1.csv` + `FacilityAddresses_API_v1.csv` + `RecAreas_API_v1.csv`
-- Filters: reservable + US state + has lat/lng coordinates
-- Result: ~1126 campgrounds
-- Safe to re-run (upserts by provider_id)
+- Both blocked by Azure WAF — return empty availability gracefully
+- Path to fix: Playwright headless browser
 
 ---
 
 ## Authentication
 
-- Registration: bcrypt hash stored, JWT returned
-- Login: verify bcrypt → JWT
-- All alert endpoints: `Authorization: Bearer <token>` → `current_user` FastAPI dependency
-- Frontend: token stored in `localStorage`, sent in every API call via `lib/api.ts`
-- JWT expiry: 7 days (configurable via `ACCESS_TOKEN_EXPIRE_MINUTES`)
-- Settings update: `PATCH /api/auth/me` — updates phone, notify_email, notify_sms
-
----
-
-## Frontend Map
-
-`CampgroundMap.tsx` uses `react-map-gl` + `mapbox-gl`:
-- Lazy-loaded on client only (no SSR import)
-- Requires `NEXT_PUBLIC_MAPBOX_TOKEN` in `.env.local`
-- Markers: forest-green pins for all campgrounds with lat/lng
-- Click marker → opens WatchModal to set an alert
-- `fitBounds` automatically zooms to show all results
-- Falls back to a placeholder card if token is not configured
-
----
-
-## Booking Windows (Today's Releases)
-
-| Provider | Window | Drop Time |
-|---|---|---|
-| recreation.gov | 180 days | 4:00 PM ET |
-| reservecalifornia | 6 months (~182 days) | 8:00 AM PT |
-| bc-parks | 4 months (~122 days) | 7:00 AM PT |
-| goingtoccamp | 5 months (~152 days) | 8:00 AM ET |
-
-`GET /api/campgrounds/releasing-today` returns every tracked campground annotated with:
-- `release_campsite_date`: the campsite date becoming bookable today (`today + window`)
-- `drop_time`: human-readable drop time
-- `booking_window_days`: numeric window
+- Passwords: bcrypt
+- Sessions: JWT (7-day expiry, configurable via `ACCESS_TOKEN_EXPIRE_MINUTES`)
+- Frontend: token in `localStorage`, sent as `Authorization: Bearer`
+- Admin check: `is_admin` field on User, enforced via `admin_user` FastAPI dependency
 
 ---
 
 ## Environment Variables
 
-### Backend (`backend/.env`)
+### Backend
 ```
-DATABASE_URL=postgresql+asyncpg://kestrel:secret@localhost:5433/kestrel
-REDIS_URL=redis://localhost:6379/0
-SECRET_KEY=change-me-in-production
-ACCESS_TOKEN_EXPIRE_MINUTES=10080
-ENVIRONMENT=development
-FRONTEND_URL=http://localhost:3001
+DATABASE_URL=postgresql+asyncpg://...
+REDIS_URL=redis://...
+SECRET_KEY=...
+ENVIRONMENT=production
+FRONTEND_URL=https://kestrel-camp.vercel.app
 
-# Email (SendGrid) — sends when set, regardless of ENVIRONMENT
 SENDGRID_API_KEY=SG.xxx
-
-# SMS (Twilio) — sends when set and user has phone + notify_sms=true
 TWILIO_ACCOUNT_SID=ACxxx
 TWILIO_AUTH_TOKEN=xxx
 TWILIO_FROM_NUMBER=+1xxxxxxxxxx
+
+SENTRY_DSN=https://...@sentry.io/...
 ```
 
-### Frontend (`.env.local`)
+### Frontend (Vercel)
 ```
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1...   # get from mapbox.com
+NEXT_PUBLIC_API_URL=https://<railway-backend-url>
+NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1...
+NEXT_PUBLIC_SENTRY_DSN=https://...@sentry.io/...
+SENTRY_AUTH_TOKEN=...   # for source map uploads at build time
 ```
