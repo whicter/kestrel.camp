@@ -7,15 +7,17 @@ import { MapPin } from "lucide-react";
 interface Props {
   campgrounds: Campground[];
   onSelect?: (cg: Campground) => void;
+  onMoveEnd?: (center: { lat: number; lng: number }) => void;
 }
 
 // Lazy-load mapbox-gl only on the client
 let mapboxgl: typeof import("mapbox-gl") | null = null;
 
-export function CampgroundMap({ campgrounds, onSelect }: Props) {
+export function CampgroundMap({ campgrounds, onSelect, onMoveEnd }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("mapbox-gl").Map | null>(null);
   const markersRef = useRef<import("mapbox-gl").Marker[]>([]);
+  const userMovedRef = useRef(false);
   const [ready, setReady] = useState(false);
   const [noToken, setNoToken] = useState(false);
 
@@ -25,7 +27,6 @@ export function CampgroundMap({ campgrounds, onSelect }: Props) {
     if (!containerRef.current || mapRef.current) return;
     if (!token) { setNoToken(true); return; }
 
-    // Dynamic import so SSR never touches mapbox-gl
     if (!mapboxgl) {
       mapboxgl = (await import("mapbox-gl")).default as unknown as typeof import("mapbox-gl");
       await import("mapbox-gl/dist/mapbox-gl.css");
@@ -43,8 +44,23 @@ export function CampgroundMap({ campgrounds, onSelect }: Props) {
     });
 
     map.on("load", () => setReady(true));
+
+    // Track user-initiated moves
+    map.on("dragstart", () => { userMovedRef.current = true; });
+    map.on("zoomstart", (_e: unknown) => {
+      // Only mark as user-moved for scroll/pinch zoom, not programmatic
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((_e as any)?.originalEvent) userMovedRef.current = true;
+    });
+
+    map.on("moveend", () => {
+      if (!userMovedRef.current || !onMoveEnd) return;
+      const center = map.getCenter();
+      onMoveEnd({ lat: center.lat, lng: center.lng });
+    });
+
     mapRef.current = map;
-  }, [token]);
+  }, [token, onMoveEnd]);
 
   useEffect(() => {
     initMap();
@@ -59,7 +75,6 @@ export function CampgroundMap({ campgrounds, onSelect }: Props) {
     const map = mapRef.current;
     if (!map || !ready || !mapboxgl) return;
 
-    // Remove old markers
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
@@ -84,7 +99,6 @@ export function CampgroundMap({ campgrounds, onSelect }: Props) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const marker = new (mapboxgl as any).Marker(el)
         .setLngLat([cg.lng!, cg.lat!])
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .setPopup(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           new (mapboxgl as any).Popup({ offset: 18, closeButton: false })
@@ -100,16 +114,18 @@ export function CampgroundMap({ campgrounds, onSelect }: Props) {
       markersRef.current.push(marker);
     });
 
-    // Fit bounds if we have markers
-    if (withCoords.length > 1) {
-      const lngs = withCoords.map((c) => c.lng!);
-      const lats = withCoords.map((c) => c.lat!);
-      map.fitBounds(
-        [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
-        { padding: 60, maxZoom: 9, duration: 500 }
-      );
-    } else if (withCoords.length === 1) {
-      map.flyTo({ center: [withCoords[0].lng!, withCoords[0].lat!], zoom: 10 });
+    // Auto-fit bounds only if user hasn't manually moved the map
+    if (!userMovedRef.current) {
+      if (withCoords.length > 1) {
+        const lngs = withCoords.map((c) => c.lng!);
+        const lats = withCoords.map((c) => c.lat!);
+        map.fitBounds(
+          [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+          { padding: 60, maxZoom: 9, duration: 500 }
+        );
+      } else if (withCoords.length === 1) {
+        map.flyTo({ center: [withCoords[0].lng!, withCoords[0].lat!], zoom: 10 });
+      }
     }
   }, [campgrounds, ready, onSelect]);
 

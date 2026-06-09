@@ -9,7 +9,7 @@ import { WatchModal } from "@/components/WatchModal";
 import { campgrounds as campgroundsApi, providerUrl, type Campground } from "@/lib/api";
 import {
   Search, SlidersHorizontal, MapPin, ExternalLink,
-  Map, List, Clock, Loader2, Bell, LocateFixed,
+  Map, List, Clock, Loader2, Bell, LocateFixed, Navigation,
 } from "lucide-react";
 import { CampgroundMap } from "@/components/CampgroundMap";
 
@@ -28,6 +28,7 @@ export default function SearchPage() {
   const [showAuth, setShowAuth]       = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating]       = useState(false);
+  const [mapCenter, setMapCenter]     = useState<{ lat: number; lng: number } | null>(null);
   const sentinelRef                   = useRef<HTMLDivElement>(null);
   const currentQuery                  = useRef("");
   const currentLocation               = useRef<{ lat: number; lng: number } | null>(null);
@@ -244,7 +245,30 @@ export default function SearchPage() {
           {/* Map panel */}
           {view === "map" && (
             <div className="relative flex flex-1 overflow-hidden">
-              <CampgroundMap campgrounds={results} onSelect={(cg) => setWatching(cg)} />
+              <CampgroundMap
+                campgrounds={results}
+                onSelect={(cg) => setWatching(cg)}
+                onMoveEnd={(center) => setMapCenter(center)}
+              />
+
+              {/* Search this area button */}
+              {mapCenter && (
+                <div className="absolute left-1/2 top-4 -translate-x-1/2">
+                  <button
+                    onClick={() => {
+                      currentLocation.current = mapCenter;
+                      setUserLocation(mapCenter);
+                      setMapCenter(null);
+                      search(currentQuery.current, mapCenter);
+                    }}
+                    className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs font-medium text-foreground shadow-md transition-colors hover:bg-secondary"
+                  >
+                    <Navigation size={12} />
+                    Search this area
+                  </button>
+                </div>
+              )}
+
               <div className="absolute bottom-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 shadow-md">
                 <Clock size={12} className="text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Scanning {results.length} campgrounds</span>
