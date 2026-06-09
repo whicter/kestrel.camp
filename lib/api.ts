@@ -104,7 +104,7 @@ export function providerUrl(provider: string, provider_id: string, facility_id?:
     case "recreation.gov":
       return `https://www.recreation.gov/camping/campgrounds/${provider_id}`;
     case "reservecalifornia":
-      return null; // No reliable deep link — site overhauled Oct 2025
+      return `https://www.reservecalifornia.com/park/${provider_id}`;
     default:
       return null;
   }
