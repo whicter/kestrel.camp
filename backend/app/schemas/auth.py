@@ -21,6 +21,7 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     email: str
     tier: str
+    is_admin: bool
     notify_email: bool
     notify_sms: bool
     phone: str | None = None

@@ -25,6 +25,8 @@ class User(Base, TimestampMixin):
         SAEnum(UserTier), default=UserTier.free, nullable=False
     )
 
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     # Notification preferences
     notify_email: Mapped[bool] = mapped_column(Boolean, default=True)
     notify_sms: Mapped[bool] = mapped_column(Boolean, default=False)

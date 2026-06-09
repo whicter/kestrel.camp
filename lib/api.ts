@@ -31,9 +31,27 @@ export interface User {
   id: string;
   email: string;
   tier: string;
+  is_admin: boolean;
   notify_email: boolean;
   notify_sms: boolean;
   phone: string | null;
+}
+
+export interface AdminStats {
+  total_users: number;
+  total_campgrounds: number;
+  active_alerts: number;
+  total_alerts: number;
+  campgrounds_by_provider: { provider: string; count: number }[];
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  tier: string;
+  is_admin: boolean;
+  alert_count: number;
+  created_at: string;
 }
 
 export const auth = {
@@ -140,6 +158,11 @@ export interface Alert {
   triggered_at: string | null;
   created_at: string;
 }
+
+export const admin = {
+  stats: (token: string) => request<AdminStats>("/api/admin/stats", {}, token),
+  users: (token: string) => request<AdminUser[]>("/api/admin/users", {}, token),
+};
 
 export const alerts = {
   list: (token: string) => request<Alert[]>("/api/alerts", {}, token),
