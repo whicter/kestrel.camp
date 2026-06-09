@@ -129,15 +129,13 @@ export default function ReleasingPage() {
                   <div className="flex flex-1 flex-col items-start gap-2">
                     <div className="flex w-full items-center justify-between">
                       <ProviderBadge provider={w.provider} />
-                      <a
-                        href={w.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => window.open(w.url, "_blank", "noopener,noreferrer")}
                         className="rounded p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-                        title={`Open ${w.url}`}
                       >
                         <ExternalLink size={13} />
-                      </a>
+                      </button>
                     </div>
                     <div>
                       <p className="text-lg font-semibold tabular-nums text-foreground">

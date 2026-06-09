@@ -332,15 +332,13 @@ export default function SearchPage() {
                             </p>
                           </div>
                           {extUrl && (
-                            <a
-                              href={extUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-all hover:bg-primary/10 hover:text-primary group-hover:opacity-100"
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); window.open(extUrl, "_blank", "noopener,noreferrer"); }}
+                              className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                             >
                               <ExternalLink size={13} />
-                            </a>
+                            </button>
                           )}
                         </div>
 
