@@ -325,8 +325,8 @@ export default function SearchPage() {
                       <MapPin size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{r.name}</p>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">{r.name}</p>
                             <p className="mt-0.5 truncate text-xs text-muted-foreground">
                               {r.park_name} · {r.state_province}
                             </p>
