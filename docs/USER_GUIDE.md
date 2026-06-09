@@ -133,15 +133,3 @@ Click **Save preferences**.
 - **Watch the Releasing page** the day before a popular campground opens.
   **提前关注 Releasing 页面**，在开放前一天就设好提醒。
 
----
-
-## Admin Panel / 管理后台
-
-Admin users can access `/admin` to view:
-- Total users, campgrounds, alerts (active and total)
-- Campground breakdown by provider
-- Full user list with tier and alert count
-
-Admin access is granted manually — contact the site owner.
-
-管理员可访问 `/admin` 查看用户、营地和提醒的统计数据。管理员权限需由站长手动授予。
