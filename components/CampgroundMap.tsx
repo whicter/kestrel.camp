@@ -18,8 +18,12 @@ export function CampgroundMap({ campgrounds, onSelect, onMoveEnd }: Props) {
   const mapRef = useRef<import("mapbox-gl").Map | null>(null);
   const markersRef = useRef<import("mapbox-gl").Marker[]>([]);
   const userMovedRef = useRef(false);
+  const onMoveEndRef = useRef(onMoveEnd);
   const [ready, setReady] = useState(false);
   const [noToken, setNoToken] = useState(false);
+
+  // Keep ref up to date without triggering map re-init
+  useEffect(() => { onMoveEndRef.current = onMoveEnd; }, [onMoveEnd]);
 
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -45,22 +49,20 @@ export function CampgroundMap({ campgrounds, onSelect, onMoveEnd }: Props) {
 
     map.on("load", () => setReady(true));
 
-    // Track user-initiated moves
     map.on("dragstart", () => { userMovedRef.current = true; });
     map.on("zoomstart", (_e: unknown) => {
-      // Only mark as user-moved for scroll/pinch zoom, not programmatic
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if ((_e as any)?.originalEvent) userMovedRef.current = true;
     });
 
     map.on("moveend", () => {
-      if (!userMovedRef.current || !onMoveEnd) return;
+      if (!userMovedRef.current) return;
       const center = map.getCenter();
-      onMoveEnd({ lat: center.lat, lng: center.lng });
+      onMoveEndRef.current?.({ lat: center.lat, lng: center.lng });
     });
 
     mapRef.current = map;
-  }, [token, onMoveEnd]);
+  }, [token]); // onMoveEnd intentionally excluded — accessed via ref
 
   useEffect(() => {
     initMap();
