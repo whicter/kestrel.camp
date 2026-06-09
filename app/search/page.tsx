@@ -75,36 +75,24 @@ export default function SearchPage() {
     }
   }, [loadingMore, hasMore, offset]);
 
-  const requestLocation = useCallback(async () => {
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
     setLocating(true);
-    try {
-      // Try two IP geolocation services in sequence
-      let loc: { lat: number; lng: number } | null = null;
-
-      try {
-        const res = await fetch("https://ipapi.co/json/");
-        const data = await res.json();
-        if (data.latitude && data.longitude) {
-          loc = { lat: data.latitude, lng: data.longitude };
-        }
-      } catch { /* try next */ }
-
-      if (!loc) {
-        const res = await fetch("https://ipwho.is/");
-        const data = await res.json();
-        if (data.success && data.latitude && data.longitude) {
-          loc = { lat: data.latitude, lng: data.longitude };
-        }
-      }
-
-      if (loc) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         currentLocation.current = loc;
         setUserLocation(loc);
+        setLocating(false);
         search(currentQuery.current, loc);
+      },
+      () => setLocating(false),
+      {
+        enableHighAccuracy: false, // network-based, not GPS — near instant
+        maximumAge: 60000,         // reuse cached position if < 1 min old
+        timeout: 8000,
       }
-    } catch { /* silently fail */ } finally {
-      setLocating(false);
-    }
+    );
   }, [search]);
 
   // Initial load
