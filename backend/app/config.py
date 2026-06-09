@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     twilio_auth_token: str = ""
     twilio_from_number: str = ""
 
+    sentry_dsn: str = ""
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
