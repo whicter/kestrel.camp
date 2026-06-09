@@ -78,17 +78,31 @@ export default function SearchPage() {
   const requestLocation = useCallback(async () => {
     setLocating(true);
     try {
-      const res = await fetch("https://ipapi.co/json/");
-      const data = await res.json();
-      if (data.latitude && data.longitude) {
-        const loc = { lat: data.latitude, lng: data.longitude };
+      // Try two IP geolocation services in sequence
+      let loc: { lat: number; lng: number } | null = null;
+
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        const data = await res.json();
+        if (data.latitude && data.longitude) {
+          loc = { lat: data.latitude, lng: data.longitude };
+        }
+      } catch { /* try next */ }
+
+      if (!loc) {
+        const res = await fetch("https://ipwho.is/");
+        const data = await res.json();
+        if (data.success && data.latitude && data.longitude) {
+          loc = { lat: data.latitude, lng: data.longitude };
+        }
+      }
+
+      if (loc) {
         currentLocation.current = loc;
         setUserLocation(loc);
         search(currentQuery.current, loc);
       }
-    } catch {
-      // silently fail
-    } finally {
+    } catch { /* silently fail */ } finally {
       setLocating(false);
     }
   }, [search]);

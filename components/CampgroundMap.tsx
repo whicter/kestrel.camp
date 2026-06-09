@@ -31,7 +31,7 @@ export function CampgroundMap({ campgrounds, onSelect, onMoveEnd, flyToLocation 
   // Fly to location when "Near me" is used
   useEffect(() => {
     if (!flyToLocation || !mapRef.current || !ready) return;
-    userMovedRef.current = false; // allow auto-fitBounds again after fly
+    userMovedRef.current = true; // prevent fitBounds from overriding the flyTo
     mapRef.current.flyTo({
       center: [flyToLocation.lng, flyToLocation.lat],
       zoom: 7,
