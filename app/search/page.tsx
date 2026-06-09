@@ -17,7 +17,7 @@ const PAGE_SIZE = 50;
 
 export default function SearchPage() {
   const router = useRouter();
-  const [view, setView]               = useState<"list" | "map">("list");
+  const [view, setView]               = useState<"list" | "map">("map");
   const [query, setQuery]             = useState("");
   const [results, setResults]         = useState<Campground[]>([]);
   const [loading, setLoading]         = useState(false);
