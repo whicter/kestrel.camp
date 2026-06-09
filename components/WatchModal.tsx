@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { alerts as alertsApi, type Campground } from "@/lib/api";
+import { alerts as alertsApi, providerUrl, type Campground } from "@/lib/api";
 import { getToken } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
 import { ProviderBadge } from "@/components/ProviderBadge";
-import { X, Loader2, CalendarDays } from "lucide-react";
+import { X, Loader2, CalendarDays, ExternalLink } from "lucide-react";
 
 interface WatchModalProps {
   campground: Campground;
@@ -44,6 +44,8 @@ export function WatchModal({ campground, onClose, onSuccess, onAuthRequired }: W
     }
   };
 
+  const extUrl = providerUrl(campground.provider, campground.provider_id);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
@@ -58,9 +60,22 @@ export function WatchModal({ campground, onClose, onSuccess, onAuthRequired }: W
             <CalendarDays size={16} style={{ color: "var(--primary)" }} />
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">New Alert</span>
           </div>
-          <h2 className="text-lg font-semibold text-foreground" style={{ fontFamily: "var(--font-heading)" }}>
-            {campground.name}
-          </h2>
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-lg font-semibold text-foreground" style={{ fontFamily: "var(--font-heading)" }}>
+              {campground.name}
+            </h2>
+            {extUrl && (
+              <a
+                href={extUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                title="View on booking site"
+              >
+                <ExternalLink size={14} />
+              </a>
+            )}
+          </div>
           <div className="mt-1 flex items-center gap-2">
             <span className="text-xs text-muted-foreground">{campground.park_name}</span>
             <ProviderBadge provider={campground.provider as never} />
