@@ -69,7 +69,7 @@ export function WatchModal({ campground, onClose, onSuccess, onAuthRequired }: W
                 href={extUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                 title="View on booking site"
               >
                 <ExternalLink size={14} />
