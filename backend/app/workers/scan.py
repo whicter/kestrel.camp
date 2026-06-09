@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 BOOKING_URLS = {
     "recreation.gov":     "https://www.recreation.gov/camping/campgrounds/{provider_id}",
-    "reservecalifornia":  "https://www.reservecalifornia.com/Web/Default.aspx",
+    "reservecalifornia":  "https://www.reservecalifornia.com/park/{provider_id}",
     "bc-parks":           "https://camping.bcparks.ca/",
     "parks-canada":       "https://reservation.pc.gc.ca/",
     "goingtoccamp":       "https://reservations.ontarioparks.com/",
