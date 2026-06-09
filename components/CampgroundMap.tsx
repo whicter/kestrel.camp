@@ -19,11 +19,13 @@ export function CampgroundMap({ campgrounds, onSelect, onMoveEnd }: Props) {
   const markersRef = useRef<import("mapbox-gl").Marker[]>([]);
   const userMovedRef = useRef(false);
   const onMoveEndRef = useRef(onMoveEnd);
+  const onSelectRef = useRef(onSelect);
   const [ready, setReady] = useState(false);
   const [noToken, setNoToken] = useState(false);
 
-  // Keep ref up to date without triggering map re-init
+  // Keep refs up to date without triggering map re-init or marker re-render
   useEffect(() => { onMoveEndRef.current = onMoveEnd; }, [onMoveEnd]);
+  useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
 
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -96,7 +98,7 @@ export function CampgroundMap({ campgrounds, onSelect, onMoveEnd }: Props) {
       dot.style.cssText = "width:8px;height:8px;border-radius:50%;background:white;display:block;";
       el.appendChild(dot);
 
-      el.onclick = () => onSelect?.(cg);
+      el.onclick = () => onSelectRef.current?.(cg);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const marker = new (mapboxgl as any).Marker(el)
@@ -129,7 +131,7 @@ export function CampgroundMap({ campgrounds, onSelect, onMoveEnd }: Props) {
         map.flyTo({ center: [withCoords[0].lng!, withCoords[0].lat!], zoom: 10 });
       }
     }
-  }, [campgrounds, ready, onSelect]);
+  }, [campgrounds, ready]); // onSelect accessed via ref
 
   if (noToken) {
     return (
