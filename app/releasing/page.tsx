@@ -16,24 +16,28 @@ const DROP_WINDOWS = [
     time: "4:00 PM ET",
     rule: "180 days in advance",
     note: "Busiest release window. Sites at Yosemite, Grand Canyon, Yellowstone.",
+    url: "https://www.recreation.gov",
   },
   {
     provider: "reservecalifornia" as const,
     time: "8:00 AM PT",
     rule: "6 months in advance",
     note: "California state parks. Big Sur, Pfeiffer, Malibu Creek.",
+    url: "https://www.reservecalifornia.com",
   },
   {
     provider: "bc-parks" as const,
     time: "7:00 AM PT",
     rule: "4 months in advance",
     note: "BC provincial parks. Garibaldi, Goldstream, Cape Scott.",
+    url: "https://camping.bcparks.ca",
   },
   {
     provider: "goingtoccamp" as const,
     time: "8:00 AM ET",
     rule: "5 months in advance",
     note: "Ontario, Manitoba, Nova Scotia parks.",
+    url: "https://www.goingtoccamp.com",
   },
 ];
 
@@ -122,8 +126,19 @@ export default function ReleasingPage() {
                   key={w.provider}
                   className="flex gap-4 rounded-xl border border-border bg-card p-4 shadow-sm"
                 >
-                  <div className="flex flex-col items-start gap-2">
-                    <ProviderBadge provider={w.provider} />
+                  <div className="flex flex-1 flex-col items-start gap-2">
+                    <div className="flex w-full items-center justify-between">
+                      <ProviderBadge provider={w.provider} />
+                      <a
+                        href={w.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                        title={`Open ${w.url}`}
+                      >
+                        <ExternalLink size={13} />
+                      </a>
+                    </div>
                     <div>
                       <p className="text-lg font-semibold tabular-nums text-foreground">
                         {w.time}
