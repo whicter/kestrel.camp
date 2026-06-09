@@ -103,7 +103,7 @@ export function providerUrl(provider: string, provider_id: string): string | nul
     case "recreation.gov":
       return `https://www.recreation.gov/camping/campgrounds/${provider_id}`;
     case "reservecalifornia":
-      return `https://www.reservecalifornia.com/Web/Default.aspx#!park/${provider_id}`;
+      return `https://www.reservecalifornia.com/Web/#!park/${provider_id}`;
     default:
       return null;
   }
