@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { ProviderBadge } from "@/components/ProviderBadge";
@@ -13,31 +13,75 @@ import {
 } from "lucide-react";
 import { CampgroundMap } from "@/components/CampgroundMap";
 
+const PAGE_SIZE = 50;
+
 export default function SearchPage() {
   const router = useRouter();
-  const [view, setView]             = useState<"list" | "map">("list");
-  const [query, setQuery]           = useState("");
-  const [results, setResults]       = useState<Campground[]>([]);
-  const [loading, setLoading]       = useState(false);
-  const [watching, setWatching]     = useState<Campground | null>(null);
-  const [showAuth, setShowAuth]     = useState(false);
+  const [view, setView]           = useState<"list" | "map">("list");
+  const [query, setQuery]         = useState("");
+  const [results, setResults]     = useState<Campground[]>([]);
+  const [loading, setLoading]     = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore]     = useState(true);
+  const [offset, setOffset]       = useState(0);
+  const [watching, setWatching]   = useState<Campground | null>(null);
+  const [showAuth, setShowAuth]   = useState(false);
+  const sentinelRef               = useRef<HTMLDivElement>(null);
+  const currentQuery              = useRef("");
 
   const search = useCallback(async (q: string) => {
+    currentQuery.current = q;
     setLoading(true);
+    setHasMore(true);
+    setOffset(0);
     try {
-      const data = await campgroundsApi.search({ q: q || undefined, limit: 50 });
+      const data = await campgroundsApi.search({ q: q || undefined, limit: PAGE_SIZE, offset: 0 });
+      if (currentQuery.current !== q) return;
       setResults(data);
+      setHasMore(data.length === PAGE_SIZE);
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextOffset = offset + PAGE_SIZE;
+    try {
+      const data = await campgroundsApi.search({
+        q: currentQuery.current || undefined,
+        limit: PAGE_SIZE,
+        offset: nextOffset,
+      });
+      setResults((prev) => [...prev, ...data]);
+      setOffset(nextOffset);
+      setHasMore(data.length === PAGE_SIZE);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, offset]);
+
+  // Initial load
   useEffect(() => { search(""); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Debounced search on query change
   useEffect(() => {
     const t = setTimeout(() => search(query), 300);
     return () => clearTimeout(t);
   }, [query, search]);
+
+  // Infinite scroll via IntersectionObserver
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMore(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   return (
     <>
@@ -84,7 +128,7 @@ export default function SearchPage() {
             <div className="flex items-center justify-between border-b border-border px-4 py-2 sm:px-6">
               <span className="flex items-center gap-2 text-xs text-muted-foreground">
                 {loading && <Loader2 size={12} className="animate-spin" />}
-                {results.length} campgrounds
+                {results.length} campgrounds{hasMore && !loading ? "+" : ""}
               </span>
             </div>
 
@@ -138,6 +182,11 @@ export default function SearchPage() {
                   </div>
                 );
               })}
+
+              {/* Infinite scroll sentinel */}
+              <div ref={sentinelRef} className="py-4 flex justify-center">
+                {loadingMore && <Loader2 size={16} className="animate-spin text-muted-foreground" />}
+              </div>
 
               {!loading && results.length === 0 && (
                 <div className="flex flex-col items-center gap-3 py-20 text-center">

@@ -123,7 +123,7 @@ export interface ReleasingCampground {
 }
 
 export const campgrounds = {
-  search: (params: { q?: string; provider?: string; state?: string; limit?: number } = {}) => {
+  search: (params: { q?: string; provider?: string; state?: string; limit?: number; offset?: number } = {}) => {
     const qs = new URLSearchParams(
       Object.entries(params)
         .filter(([, v]) => v !== undefined)
