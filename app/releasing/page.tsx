@@ -133,7 +133,7 @@ export default function ReleasingPage() {
                         type="button"
                         title="Visit booking site"
                         onClick={() => window.open(w.url, "_blank", "noopener,noreferrer")}
-                        className="cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                        className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
                       >
                         <ExternalLink size={13} />
                       </button>

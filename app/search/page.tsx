@@ -336,7 +336,7 @@ export default function SearchPage() {
                               type="button"
                               title="View on booking site"
                               onClick={(e) => { e.stopPropagation(); window.open(extUrl, "_blank", "noopener,noreferrer"); }}
-                              className="shrink-0 cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                              className="shrink-0 cursor-pointer rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
                             >
                               <ExternalLink size={13} />
                             </button>
