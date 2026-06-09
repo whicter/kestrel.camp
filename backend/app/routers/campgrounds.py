@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 from datetime import date, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 from ..database import get_db
 from ..models.campground import Campground, Provider
 from ..schemas.campground import CampgroundResponse
@@ -10,11 +10,29 @@ from ..schemas.campground import CampgroundResponse
 router = APIRouter(prefix="/api/campgrounds", tags=["campgrounds"])
 
 
+def _haversine_km(lat1: float, lng1: float):
+    """Returns a SQLAlchemy expression for distance in km from (lat1, lng1)."""
+    R = 6371
+    lat1_r = func.radians(lat1)
+    lng1_r = func.radians(lng1)
+    lat2_r = func.radians(Campground.lat)
+    lng2_r = func.radians(Campground.lng)
+    dlat = lat2_r - lat1_r
+    dlng = lng2_r - lng1_r
+    a = (
+        func.pow(func.sin(dlat / 2), 2)
+        + func.cos(lat1_r) * func.cos(lat2_r) * func.pow(func.sin(dlng / 2), 2)
+    )
+    return R * 2 * func.asin(func.sqrt(a))
+
+
 @router.get("", response_model=list[CampgroundResponse])
 async def search_campgrounds(
     q: Optional[str] = Query(None),
     provider: Optional[str] = Query(None),
     state: Optional[str] = Query(None),
+    lat: Optional[float] = Query(None),
+    lng: Optional[float] = Query(None),
     limit: int = Query(20, le=100),
     offset: int = Query(0),
     db: AsyncSession = Depends(get_db),
@@ -32,6 +50,12 @@ async def search_campgrounds(
         stmt = stmt.where(Campground.provider == provider)
     if state:
         stmt = stmt.where(Campground.state_province.ilike(f"%{state}%"))
+
+    if lat is not None and lng is not None:
+        # Only sort by distance when no text query — proximity is the ranking signal
+        stmt = stmt.where(Campground.lat.isnot(None), Campground.lng.isnot(None))
+        if not q:
+            stmt = stmt.order_by(_haversine_km(lat, lng))
 
     stmt = stmt.offset(offset).limit(limit)
     result = await db.execute(stmt)

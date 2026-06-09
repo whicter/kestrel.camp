@@ -9,7 +9,7 @@ import { WatchModal } from "@/components/WatchModal";
 import { campgrounds as campgroundsApi, providerUrl, type Campground } from "@/lib/api";
 import {
   Search, SlidersHorizontal, MapPin, ExternalLink,
-  Map, List, Clock, Loader2, Bell,
+  Map, List, Clock, Loader2, Bell, LocateFixed,
 } from "lucide-react";
 import { CampgroundMap } from "@/components/CampgroundMap";
 
@@ -17,25 +17,35 @@ const PAGE_SIZE = 50;
 
 export default function SearchPage() {
   const router = useRouter();
-  const [view, setView]           = useState<"list" | "map">("list");
-  const [query, setQuery]         = useState("");
-  const [results, setResults]     = useState<Campground[]>([]);
-  const [loading, setLoading]     = useState(false);
+  const [view, setView]               = useState<"list" | "map">("list");
+  const [query, setQuery]             = useState("");
+  const [results, setResults]         = useState<Campground[]>([]);
+  const [loading, setLoading]         = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore]     = useState(true);
-  const [offset, setOffset]       = useState(0);
-  const [watching, setWatching]   = useState<Campground | null>(null);
-  const [showAuth, setShowAuth]   = useState(false);
-  const sentinelRef               = useRef<HTMLDivElement>(null);
-  const currentQuery              = useRef("");
+  const [hasMore, setHasMore]         = useState(true);
+  const [offset, setOffset]           = useState(0);
+  const [watching, setWatching]       = useState<Campground | null>(null);
+  const [showAuth, setShowAuth]       = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating]       = useState(false);
+  const sentinelRef                   = useRef<HTMLDivElement>(null);
+  const currentQuery                  = useRef("");
+  const currentLocation               = useRef<{ lat: number; lng: number } | null>(null);
 
-  const search = useCallback(async (q: string) => {
+  const search = useCallback(async (q: string, loc?: { lat: number; lng: number } | null) => {
+    const location = loc !== undefined ? loc : currentLocation.current;
     currentQuery.current = q;
     setLoading(true);
     setHasMore(true);
     setOffset(0);
     try {
-      const data = await campgroundsApi.search({ q: q || undefined, limit: PAGE_SIZE, offset: 0 });
+      const data = await campgroundsApi.search({
+        q: q || undefined,
+        lat: location?.lat,
+        lng: location?.lng,
+        limit: PAGE_SIZE,
+        offset: 0,
+      });
       if (currentQuery.current !== q) return;
       setResults(data);
       setHasMore(data.length === PAGE_SIZE);
@@ -51,6 +61,8 @@ export default function SearchPage() {
     try {
       const data = await campgroundsApi.search({
         q: currentQuery.current || undefined,
+        lat: currentLocation.current?.lat,
+        lng: currentLocation.current?.lng,
         limit: PAGE_SIZE,
         offset: nextOffset,
       });
@@ -61,6 +73,22 @@ export default function SearchPage() {
       setLoadingMore(false);
     }
   }, [loadingMore, hasMore, offset]);
+
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        currentLocation.current = loc;
+        setUserLocation(loc);
+        setLocating(false);
+        search(currentQuery.current, loc);
+      },
+      () => setLocating(false),
+      { timeout: 8000 }
+    );
+  }, [search]);
 
   // Initial load
   useEffect(() => { search(""); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -101,6 +129,22 @@ export default function SearchPage() {
                 className="w-full rounded-lg border border-border bg-card py-2.5 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
+
+            <button
+              onClick={requestLocation}
+              title={userLocation ? "Sorted by distance" : "Sort by distance"}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors ${
+                userLocation
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-card text-foreground hover:bg-secondary"
+              }`}
+            >
+              {locating
+                ? <Loader2 size={14} className="animate-spin" />
+                : <LocateFixed size={14} />
+              }
+              <span className="hidden sm:inline">{userLocation ? "Nearby" : "Near me"}</span>
+            </button>
 
             <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary">
               <SlidersHorizontal size={14} />
