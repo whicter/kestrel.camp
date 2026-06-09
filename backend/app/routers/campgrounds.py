@@ -110,6 +110,7 @@ async def releasing_today(db: AsyncSession = Depends(get_db)):
             "state_province": cg.state_province,
             "provider": prov,
             "provider_id": cg.provider_id,
+            "provider_facility_id": cg.provider_facility_id,
             "total_sites": cg.total_sites,
             "drop_time": DROP_TIMES.get(prov, "—"),
             "booking_window_days": window,

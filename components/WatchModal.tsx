@@ -44,7 +44,7 @@ export function WatchModal({ campground, onClose, onSuccess, onAuthRequired }: W
     }
   };
 
-  const extUrl = providerUrl(campground.provider, campground.provider_id);
+  const extUrl = providerUrl(campground.provider, campground.provider_id, campground.provider_facility_id);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

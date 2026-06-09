@@ -12,6 +12,7 @@ class CampgroundResponse(BaseModel):
     country: str
     provider: str
     provider_id: str
+    provider_facility_id: Optional[str]
     lat: Optional[float]
     lng: Optional[float]
     total_sites: Optional[int]

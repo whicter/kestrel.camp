@@ -314,7 +314,7 @@ export default function SearchPage() {
 
             <div className="flex flex-col">
               {results.map((r) => {
-                const extUrl = providerUrl(r.provider, r.provider_id);
+                const extUrl = providerUrl(r.provider, r.provider_id, r.provider_facility_id);
                 return (
                   <div
                     key={r.id}

@@ -92,18 +92,20 @@ export interface Campground {
   country: string;
   provider: string;
   provider_id: string;
+  provider_facility_id: string | null;
   lat: number | null;
   lng: number | null;
   total_sites: number | null;
   last_scanned_at: string | null;
 }
 
-export function providerUrl(provider: string, provider_id: string): string | null {
+export function providerUrl(provider: string, provider_id: string, facility_id?: string | null): string | null {
   switch (provider) {
     case "recreation.gov":
       return `https://www.recreation.gov/camping/campgrounds/${provider_id}`;
     case "reservecalifornia":
-      return `https://www.reservecalifornia.com/Web/#!park/${provider_id}`;
+      if (!facility_id) return null;
+      return `https://www.reservecalifornia.com/Web/#!park/${provider_id}/${facility_id}`;
     default:
       return null;
   }
@@ -116,6 +118,7 @@ export interface ReleasingCampground {
   state_province: string;
   provider: string;
   provider_id: string;
+  provider_facility_id: string | null;
   total_sites: number | null;
   drop_time: string;
   booking_window_days: number;

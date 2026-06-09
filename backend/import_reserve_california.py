@@ -55,8 +55,8 @@ async def fetch_all_places(client: httpx.AsyncClient) -> list[dict]:
     return places
 
 
-async def has_camping_facilities(client: httpx.AsyncClient, place_id: int) -> bool:
-    """Return True if the park has at least one bookable camping facility."""
+async def get_first_facility_id(client: httpx.AsyncClient, place_id: int) -> int | None:
+    """Return the first bookable camping FacilityId for the park, or None."""
     try:
         resp = await client.get(
             f"{BASE_URL}/rdr/fd/facilities",
@@ -64,20 +64,23 @@ async def has_camping_facilities(client: httpx.AsyncClient, place_id: int) -> bo
             timeout=15,
         )
         if resp.status_code != 200:
-            return False
+            return None
         facilities = resp.json()
-        return any(
-            f.get("FacilityType") == 2 and f.get("AllowWebBooking", False)
-            for f in facilities
-            if f.get("PlaceId") == place_id
-        )
+        for f in facilities:
+            if (
+                f.get("PlaceId") == place_id
+                and f.get("FacilityType") == 2
+                and f.get("AllowWebBooking", False)
+            ):
+                return f.get("FacilityId")
+        return None
     except Exception as e:
         logger.debug("Facility check failed for PlaceId=%s: %s", place_id, e)
-        return False
+        return None
 
 
 async def discover_campgrounds() -> list[dict]:
-    """Fetch all places, check facilities concurrently, return campable parks."""
+    """Fetch all places, check facilities concurrently, return campable parks with FacilityId."""
     async with httpx.AsyncClient(headers=HEADERS) as client:
         places = await fetch_all_places(client)
 
@@ -96,7 +99,9 @@ async def discover_campgrounds() -> list[dict]:
         async def check(place: dict) -> dict | None:
             async with sem:
                 place_id = place["PlaceId"]
-                if await has_camping_facilities(client, place_id):
+                facility_id = await get_first_facility_id(client, place_id)
+                if facility_id is not None:
+                    place["_facility_id"] = facility_id
                     return place
                 return None
 
@@ -132,6 +137,7 @@ async def import_campgrounds():
             except (ValueError, TypeError):
                 lat = lng = None
 
+            facility_id = place.get("_facility_id")
             data = dict(
                 name=name,
                 park_name=name,
@@ -139,6 +145,7 @@ async def import_campgrounds():
                 country="US",
                 provider=Provider.reserve_california,
                 provider_id=provider_id,
+                provider_facility_id=str(facility_id) if facility_id else None,
                 lat=lat if lat else None,
                 lng=lng if lng else None,
                 total_sites=None,

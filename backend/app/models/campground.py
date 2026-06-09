@@ -31,6 +31,7 @@ class Campground(Base, TimestampMixin):
 
     provider: Mapped[Provider] = mapped_column(SAEnum(Provider), nullable=False, index=True)
     provider_id: Mapped[str] = mapped_column(String(100), nullable=False)  # ID in the external system
+    provider_facility_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # e.g. ReserveCalifornia FacilityId for deep links
 
     lat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     lng: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
