@@ -58,6 +58,7 @@ function toWatchable(r: ReleasingCampground): Campground {
     state_province: r.state_province,
     country: "",
     provider: r.provider,
+    provider_id: r.provider_id,
     lat: r.lat,
     lng: r.lng,
     total_sites: r.total_sites,
