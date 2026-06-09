@@ -131,8 +131,9 @@ export default function ReleasingPage() {
                       <ProviderBadge provider={w.provider} />
                       <button
                         type="button"
+                        title="Visit booking site"
                         onClick={() => window.open(w.url, "_blank", "noopener,noreferrer")}
-                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                        className="cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                       >
                         <ExternalLink size={13} />
                       </button>
