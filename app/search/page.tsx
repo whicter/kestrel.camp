@@ -9,11 +9,21 @@ import { WatchModal } from "@/components/WatchModal";
 import { campgrounds as campgroundsApi, providerUrl, type Campground } from "@/lib/api";
 import {
   Search, SlidersHorizontal, MapPin, ExternalLink,
-  Map, List, Clock, Loader2, Bell, LocateFixed, Navigation,
+  Map, List, Clock, Loader2, Bell, LocateFixed, Navigation, X,
 } from "lucide-react";
 import { CampgroundMap } from "@/components/CampgroundMap";
 
 const PAGE_SIZE = 50;
+
+const PROVIDERS = [
+  { value: "recreation.gov",   label: "Recreation.gov" },
+  { value: "reservecalifornia", label: "ReserveCalifornia" },
+  { value: "bc-parks",         label: "BC Parks" },
+  { value: "parks-canada",     label: "Parks Canada" },
+  { value: "reserveamerica",   label: "ReserveAmerica" },
+  { value: "usedirect",        label: "UseDirect" },
+  { value: "goingtoccamp",     label: "GoingToCamp" },
+];
 
 export default function SearchPage() {
   const router = useRouter();
@@ -29,23 +39,41 @@ export default function SearchPage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating]       = useState(false);
   const [mapCenter, setMapCenter]     = useState<{ lat: number; lng: number } | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterProvider, setFilterProvider] = useState("");
+  const [filterState, setFilterState]       = useState("");
   const sentinelRef                   = useRef<HTMLDivElement>(null);
   const currentQuery                  = useRef("");
   const currentLocation               = useRef<{ lat: number; lng: number } | null>(null);
+  const currentProvider               = useRef("");
+  const currentState                  = useRef("");
 
-  const search = useCallback(async (q: string, loc?: { lat: number; lng: number } | null) => {
+  const activeFilterCount = (filterProvider ? 1 : 0) + (filterState ? 1 : 0);
+
+  const search = useCallback(async (
+    q: string,
+    loc?: { lat: number; lng: number } | null,
+    provider?: string,
+    state?: string,
+  ) => {
     const location = loc !== undefined ? loc : currentLocation.current;
-    currentQuery.current = q;
+    const prov = provider !== undefined ? provider : currentProvider.current;
+    const st   = state    !== undefined ? state    : currentState.current;
+    currentQuery.current    = q;
+    currentProvider.current = prov;
+    currentState.current    = st;
     setLoading(true);
     setHasMore(true);
     setOffset(0);
     try {
       const data = await campgroundsApi.search({
-        q: q || undefined,
-        lat: location?.lat,
-        lng: location?.lng,
-        limit: PAGE_SIZE,
-        offset: 0,
+        q:        q || undefined,
+        provider: prov || undefined,
+        state:    st || undefined,
+        lat:      location?.lat,
+        lng:      location?.lng,
+        limit:    PAGE_SIZE,
+        offset:   0,
       });
       if (currentQuery.current !== q) return;
       setResults(data);
@@ -61,11 +89,13 @@ export default function SearchPage() {
     const nextOffset = offset + PAGE_SIZE;
     try {
       const data = await campgroundsApi.search({
-        q: currentQuery.current || undefined,
-        lat: currentLocation.current?.lat,
-        lng: currentLocation.current?.lng,
-        limit: PAGE_SIZE,
-        offset: nextOffset,
+        q:        currentQuery.current || undefined,
+        provider: currentProvider.current || undefined,
+        state:    currentState.current || undefined,
+        lat:      currentLocation.current?.lat,
+        lng:      currentLocation.current?.lng,
+        limit:    PAGE_SIZE,
+        offset:   nextOffset,
       });
       setResults((prev) => [...prev, ...data]);
       setOffset(nextOffset);
@@ -151,10 +181,91 @@ export default function SearchPage() {
               <span className="hidden sm:inline">{userLocation ? "Nearby" : "Near me"}</span>
             </button>
 
-            <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary">
-              <SlidersHorizontal size={14} />
-              <span className="hidden sm:inline">Filters</span>
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowFilters((v) => !v)}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors ${
+                  activeFilterCount > 0
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-card text-foreground hover:bg-secondary"
+                }`}
+              >
+                <SlidersHorizontal size={14} />
+                <span className="hidden sm:inline">Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+
+              {showFilters && (
+                <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-xl border border-border bg-card p-4 shadow-xl">
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Filters</span>
+                    {activeFilterCount > 0 && (
+                      <button
+                        onClick={() => {
+                          setFilterProvider("");
+                          setFilterState("");
+                          search(query, undefined, "", "");
+                          setShowFilters(false);
+                        }}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-foreground">Provider</label>
+                      <select
+                        value={filterProvider}
+                        onChange={(e) => {
+                          setFilterProvider(e.target.value);
+                          search(query, undefined, e.target.value, filterState);
+                        }}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
+                        <option value="">All providers</option>
+                        {PROVIDERS.map((p) => (
+                          <option key={p.value} value={p.value}>{p.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-foreground">State / Province</label>
+                      <input
+                        type="text"
+                        value={filterState}
+                        onChange={(e) => setFilterState(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            search(query, undefined, filterProvider, filterState);
+                            setShowFilters(false);
+                          }
+                        }}
+                        placeholder="e.g. CA, BC, Ontario"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        search(query, undefined, filterProvider, filterState);
+                        setShowFilters(false);
+                      }}
+                      className="w-full rounded-lg bg-primary py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="flex rounded-lg border border-border bg-card p-0.5">
               {(["list", "map"] as const).map((v) => (
@@ -179,6 +290,26 @@ export default function SearchPage() {
                 {loading && <Loader2 size={12} className="animate-spin" />}
                 {results.length} campgrounds{hasMore && !loading ? "+" : ""}
               </span>
+              {activeFilterCount > 0 && (
+                <div className="flex items-center gap-1.5">
+                  {filterProvider && (
+                    <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                      {PROVIDERS.find((p) => p.value === filterProvider)?.label}
+                      <button onClick={() => { setFilterProvider(""); search(query, undefined, "", filterState); }}>
+                        <X size={10} />
+                      </button>
+                    </span>
+                  )}
+                  {filterState && (
+                    <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                      {filterState}
+                      <button onClick={() => { setFilterState(""); search(query, undefined, filterProvider, ""); }}>
+                        <X size={10} />
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col">
