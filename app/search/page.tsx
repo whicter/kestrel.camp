@@ -75,20 +75,22 @@ export default function SearchPage() {
     }
   }, [loadingMore, hasMore, offset]);
 
-  const requestLocation = useCallback(() => {
-    if (!navigator.geolocation) return;
+  const requestLocation = useCallback(async () => {
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    try {
+      const res = await fetch("https://ipapi.co/json/");
+      const data = await res.json();
+      if (data.latitude && data.longitude) {
+        const loc = { lat: data.latitude, lng: data.longitude };
         currentLocation.current = loc;
         setUserLocation(loc);
-        setLocating(false);
         search(currentQuery.current, loc);
-      },
-      () => setLocating(false),
-      { timeout: 8000 }
-    );
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setLocating(false);
+    }
   }, [search]);
 
   // Initial load
@@ -257,7 +259,7 @@ export default function SearchPage() {
                   <button
                     onClick={() => {
                       currentLocation.current = mapCenter;
-                      setUserLocation(mapCenter);
+                      setUserLocation(null);  // GPS no longer active
                       setMapCenter(null);
                       search(currentQuery.current, mapCenter);
                     }}
