@@ -1,4 +1,6 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Empty in production — requests go through Next.js rewrite → backend
+// Set NEXT_PUBLIC_API_URL=http://localhost:8000 only for local dev without Next.js server
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 async function request<T>(
   path: string,
