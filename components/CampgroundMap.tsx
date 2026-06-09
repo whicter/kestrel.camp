@@ -8,12 +8,13 @@ interface Props {
   campgrounds: Campground[];
   onSelect?: (cg: Campground) => void;
   onMoveEnd?: (center: { lat: number; lng: number }) => void;
+  flyToLocation?: { lat: number; lng: number } | null;
 }
 
 // Lazy-load mapbox-gl only on the client
 let mapboxgl: typeof import("mapbox-gl") | null = null;
 
-export function CampgroundMap({ campgrounds, onSelect, onMoveEnd }: Props) {
+export function CampgroundMap({ campgrounds, onSelect, onMoveEnd, flyToLocation }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("mapbox-gl").Map | null>(null);
   const markersRef = useRef<import("mapbox-gl").Marker[]>([]);
@@ -26,6 +27,17 @@ export function CampgroundMap({ campgrounds, onSelect, onMoveEnd }: Props) {
   // Keep refs up to date without triggering map re-init or marker re-render
   useEffect(() => { onMoveEndRef.current = onMoveEnd; }, [onMoveEnd]);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+
+  // Fly to location when "Near me" is used
+  useEffect(() => {
+    if (!flyToLocation || !mapRef.current || !ready) return;
+    userMovedRef.current = false; // allow auto-fitBounds again after fly
+    mapRef.current.flyTo({
+      center: [flyToLocation.lng, flyToLocation.lat],
+      zoom: 7,
+      duration: 1200,
+    });
+  }, [flyToLocation, ready]);
 
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 

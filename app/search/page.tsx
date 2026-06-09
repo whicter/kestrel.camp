@@ -251,6 +251,7 @@ export default function SearchPage() {
                 campgrounds={results}
                 onSelect={(cg) => setWatching(cg)}
                 onMoveEnd={(center) => setMapCenter(center)}
+                flyToLocation={userLocation}
               />
 
               {/* Search this area button */}
