@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Bell, Search, Menu, User, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthModal } from "@/components/AuthModal";
@@ -38,7 +39,7 @@ export function Navbar() {
         <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl" aria-hidden="true">🪶</span>
+            <Image src="/icon.png" alt="Kestrel" width={32} height={32} className="rounded-lg" />
             <span className="font-heading text-xl font-semibold text-foreground" style={{ fontFamily: "var(--font-heading)" }}>
               Kestrel
             </span>
