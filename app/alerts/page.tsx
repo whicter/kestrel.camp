@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { alerts as alertsApi, type Alert } from "@/lib/api";
 import { getToken } from "@/lib/auth-store";
+import { AuthModal } from "@/components/AuthModal";
 
 type AlertStatus = "watching" | "triggered" | "paused" | "expired";
 
@@ -63,10 +64,13 @@ export default function AlertsPage() {
   const [alertList, setAlertList] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
 
   const load = useCallback(async () => {
     const token = getToken();
-    if (!token) { setLoading(false); return; }
+    if (!token) { setLoading(false); setIsAuthed(false); return; }
+    setIsAuthed(true);
     try {
       const data = await alertsApi.list(token);
       setAlertList(data);
@@ -101,6 +105,31 @@ export default function AlertsPage() {
   const filtered = tab === "all" ? alertList : alertList.filter((a) => a.status === tab);
   const triggeredCount = alertList.filter((a) => a.status === "triggered").length;
   const watchingCount  = alertList.filter((a) => a.status === "watching").length;
+
+  if (!loading && !isAuthed) {
+    return (
+      <>
+        <Navbar />
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 px-4 py-32 text-center">
+          <div className="flex size-14 items-center justify-center rounded-full" style={{ backgroundColor: "var(--secondary)" }}>
+            <Bell size={24} style={{ color: "var(--primary)" }} />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">Sign in to view your alerts</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Create an account to start watching campsites.</p>
+          </div>
+          <button
+            onClick={() => setShowAuth(true)}
+            className="rounded-lg px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90"
+            style={{ backgroundColor: "var(--primary)" }}
+          >
+            Sign in / Get started
+          </button>
+        </div>
+        {showAuth && <AuthModal onClose={() => setShowAuth(false)} onSuccess={() => { setShowAuth(false); load(); }} />}
+      </>
+    );
+  }
 
   return (
     <>

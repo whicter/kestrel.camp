@@ -53,9 +53,15 @@ export function Navbar() {
             <Link href="/releasing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
               Today&apos;s Releases
             </Link>
-            <Link href="/alerts" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-              <Bell size={15} /> My Alerts
-            </Link>
+            {user ? (
+              <Link href="/alerts" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+                <Bell size={15} /> My Alerts
+              </Link>
+            ) : (
+              <button onClick={() => setShowAuth(true)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+                <Bell size={15} /> My Alerts
+              </button>
+            )}
           </nav>
 
           {/* Auth */}
@@ -113,7 +119,11 @@ export function Navbar() {
             <nav className="flex flex-col gap-3 pt-3">
               <Link href="/search" className="text-sm font-medium text-foreground" onClick={() => setMenuOpen(false)}>Search</Link>
               <Link href="/releasing" className="text-sm font-medium text-foreground" onClick={() => setMenuOpen(false)}>Today&apos;s Releases</Link>
-              <Link href="/alerts" className="text-sm font-medium text-foreground" onClick={() => setMenuOpen(false)}>My Alerts</Link>
+              {user ? (
+                <Link href="/alerts" className="text-sm font-medium text-foreground" onClick={() => setMenuOpen(false)}>My Alerts</Link>
+              ) : (
+                <button className="text-sm font-medium text-foreground text-left" onClick={() => { setMenuOpen(false); setShowAuth(true); }}>My Alerts</button>
+              )}
               {user ? (
                 <>
                   <Link href="/settings" className="flex items-center gap-2 text-sm font-medium text-foreground" onClick={() => setMenuOpen(false)}>

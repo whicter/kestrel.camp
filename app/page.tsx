@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Bell, Search, MapPin, Zap, Shield, TreePine, ChevronRight, Star, ArrowRight } from "lucide-react";
+import { HeroSearch } from "@/components/HeroSearch";
+import { EmailPreview } from "@/components/EmailPreview";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/Navbar";
@@ -101,44 +103,22 @@ export default function HomePage() {
 
       <main className="flex-1">
 
-        {/* ── Hero ── dark forest bg ───────────────────────────────────────── */}
-        <section
-          className="relative overflow-hidden"
-          style={{ backgroundColor: "#2D5040" }}
-        >
-          {/* Dot-grid texture */}
-          <div
-            className="pointer-events-none absolute inset-0"
-            style={{
-              backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.06) 1px, transparent 0)",
-              backgroundSize: "28px 28px",
-            }}
+        {/* ── Hero ── full-bleed photo ──────────────────────────────────────── */}
+        <section className="relative overflow-hidden" style={{ minHeight: "80vh" }}>
+          {/* Background photo */}
+          <Image
+            src="/hero.jpg"
+            alt=""
+            fill
+            className="object-cover object-[center_40%]"
+            priority
           />
-          {/* Bottom fade to background */}
-          <div
-            className="pointer-events-none absolute bottom-0 left-0 right-0 h-24"
-            style={{ background: "linear-gradient(to bottom, transparent, var(--background))" }}
-          />
+          {/* Dark gradient overlay — left heavy for text legibility */}
+          <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.50) 50%, rgba(0,0,0,0.30) 100%)" }} />
+          {/* Bottom fade into page background */}
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-32" style={{ background: "linear-gradient(to bottom, transparent, var(--background))" }} />
 
-          <div className="relative mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-28 lg:py-36 text-center">
-
-            {/* Icon */}
-            <div className="mb-8 flex justify-center">
-              <div className="relative">
-                <div
-                  className="absolute inset-0 rounded-2xl blur-2xl opacity-50"
-                  style={{ backgroundColor: "var(--kestrel-amber)" }}
-                />
-                <Image
-                  src="/icon.png"
-                  alt="Kestrel"
-                  width={112}
-                  height={112}
-                  className="relative rounded-2xl shadow-2xl"
-                  priority
-                />
-              </div>
-            </div>
+          <div className="relative mx-auto max-w-5xl px-4 py-24 sm:px-6 sm:py-32 lg:py-44 text-center">
 
             {/* Eyebrow */}
             <div className="mb-5 flex justify-center">
@@ -169,16 +149,7 @@ export default function HomePage() {
             </p>
 
             {/* Search CTA */}
-            <div className="mx-auto mt-10 flex max-w-md flex-col gap-3 sm:flex-row">
-              <input
-                type="text"
-                placeholder="Search parks, campgrounds…"
-                className="flex-1 rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-white/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-white/40"
-              />
-              <Button className="shrink-0 bg-white px-6 py-3 text-sm font-semibold hover:bg-white/90" style={{ color: "var(--primary)" }}>
-                Search
-              </Button>
-            </div>
+            <HeroSearch />
 
             {/* Quick links */}
             <div className="mt-5 flex flex-wrap justify-center gap-x-4 gap-y-2">
@@ -321,14 +292,53 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ── Email preview ────────────────────────────────────────────────── */}
+        <section className="border-b border-border py-20">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <div className="grid items-center gap-12 lg:grid-cols-2">
+              {/* Copy */}
+              <div>
+                <div className="mb-4">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">What you&apos;ll get</span>
+                </div>
+                <h2
+                  className="mb-4 text-3xl font-semibold text-foreground"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  A clear, instant alert — straight to your inbox.
+                </h2>
+                <p className="mb-6 text-muted-foreground leading-relaxed">
+                  The moment a site opens at a campground you&apos;re watching, you get an email with everything you need — campground, dates, how many sites are available — and a direct link to book.
+                </p>
+                <ul className="space-y-3 text-sm text-muted-foreground">
+                  {[
+                    "Sent within 2 minutes of availability opening",
+                    "Direct booking link — no extra steps",
+                    "One email per alert, no spam",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2">
+                      <span className="mt-0.5 text-base leading-none" style={{ color: "var(--available)" }}>✓</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Email mockup */}
+              <EmailPreview />
+            </div>
+          </div>
+        </section>
+
         {/* ── Stats ─────────────────────────────────────────────────────────── */}
         <section className="border-y border-border bg-secondary/40 py-16">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="grid gap-6 sm:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 { stat: "12,000+", label: "Campgrounds tracked" },
                 { stat: "6", label: "Reservation systems" },
-                { stat: "2 min", label: "Scan frequency" },
+                { stat: "24/7", label: "Always monitoring" },
+                { stat: "Free", label: "Free to start" },
               ].map((item) => (
                 <div key={item.label} className="text-center">
                   <p
@@ -368,20 +378,19 @@ export default function HomePage() {
               Set up an alert in 30 seconds. We&apos;ll do the watching.
             </p>
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-              <Button
-                size="lg"
-                className="min-w-44 bg-white font-semibold hover:bg-white/90"
+              <Link
+                href="/alerts"
+                className="inline-flex min-w-44 items-center justify-center gap-2 rounded-lg bg-white px-6 py-2.5 text-sm font-semibold transition-colors hover:bg-white/90"
                 style={{ color: "var(--primary)" }}
               >
                 Get started — free <ArrowRight size={16} />
-              </Button>
-              <Button
-                size="lg"
-                variant="ghost"
-                className="min-w-44 border border-white/20 text-white hover:bg-white/10"
+              </Link>
+              <Link
+                href="/search"
+                className="inline-flex min-w-44 items-center justify-center rounded-lg border border-white/20 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
               >
                 Browse campgrounds
-              </Button>
+              </Link>
             </div>
             <p className="mt-5 flex items-center justify-center gap-1 text-xs text-white/40">
               <Star size={11} />
