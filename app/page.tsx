@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Bell, Search, MapPin, Zap, Shield, TreePine, ChevronRight, Star, ArrowRight } from "lucide-react";
 import { HeroSearch } from "@/components/HeroSearch";
 import { EmailPreview } from "@/components/EmailPreview";
+import { ScrollReveal } from "@/components/ScrollReveal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/Navbar";
@@ -182,17 +183,19 @@ export default function HomePage() {
             </h2>
 
             <div className="grid gap-10 sm:grid-cols-3">
-              {HOW_IT_WORKS.map((item) => (
-                <div key={item.step} className="flex flex-col items-center text-center">
-                  <div
-                    className="mb-5 flex size-14 items-center justify-center rounded-full text-xl font-bold text-primary-foreground shadow-md"
-                    style={{ backgroundColor: "var(--primary)" }}
-                  >
-                    {item.step}
+              {HOW_IT_WORKS.map((item, i) => (
+                <ScrollReveal key={item.step} variant="fade-up" delay={i * 120}>
+                  <div className="flex flex-col items-center text-center">
+                    <div
+                      className="mb-5 flex size-14 items-center justify-center rounded-full text-xl font-bold text-primary-foreground shadow-md"
+                      style={{ backgroundColor: "var(--primary)" }}
+                    >
+                      {item.step}
+                    </div>
+                    <h3 className="mb-2 text-base font-semibold text-foreground">{item.title}</h3>
+                    <p className="text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
                   </div>
-                  <h3 className="mb-2 text-base font-semibold text-foreground">{item.title}</h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
-                </div>
+                </ScrollReveal>
               ))}
             </div>
           </div>
@@ -211,9 +214,9 @@ export default function HomePage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {MOCK_ALERTS.map((alert) => (
+              {MOCK_ALERTS.map((alert, i) => (
+                <ScrollReveal key={alert.id} variant="fade-up" delay={i * 100}>
                 <div
-                  key={alert.id}
                   className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -240,6 +243,7 @@ export default function HomePage() {
                     </div>
                   )}
                 </div>
+                </ScrollReveal>
               ))}
             </div>
           </div>
@@ -273,19 +277,21 @@ export default function HomePage() {
             </h2>
 
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {FEATURES.map((f) => {
+              {FEATURES.map((f, i) => {
                 const Icon = f.icon;
                 return (
-                  <div key={f.title} className="group rounded-xl border border-border bg-card p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
-                    <div
-                      className="mb-4 flex size-11 items-center justify-center rounded-xl"
-                      style={{ backgroundColor: "var(--secondary)" }}
-                    >
-                      <Icon size={20} style={{ color: "var(--primary)" }} />
+                  <ScrollReveal key={f.title} variant="fade-up" delay={i * 80}>
+                    <div className="group rounded-xl border border-border bg-card p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
+                      <div
+                        className="mb-4 flex size-11 items-center justify-center rounded-xl"
+                        style={{ backgroundColor: "var(--secondary)" }}
+                      >
+                        <Icon size={20} style={{ color: "var(--primary)" }} />
+                      </div>
+                      <h3 className="mb-2 text-sm font-semibold text-foreground">{f.title}</h3>
+                      <p className="text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
                     </div>
-                    <h3 className="mb-2 text-sm font-semibold text-foreground">{f.title}</h3>
-                    <p className="text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
-                  </div>
+                  </ScrollReveal>
                 );
               })}
             </div>
@@ -297,7 +303,7 @@ export default function HomePage() {
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
             <div className="grid items-center gap-12 lg:grid-cols-2">
               {/* Copy */}
-              <div>
+              <ScrollReveal variant="fade-right">
                 <div className="mb-4">
                   <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">What you&apos;ll get</span>
                 </div>
@@ -322,10 +328,12 @@ export default function HomePage() {
                     </li>
                   ))}
                 </ul>
-              </div>
+              </ScrollReveal>
 
               {/* Email mockup */}
-              <EmailPreview />
+              <ScrollReveal variant="fade-left" delay={150}>
+                <EmailPreview />
+              </ScrollReveal>
             </div>
           </div>
         </section>
