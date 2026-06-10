@@ -19,10 +19,6 @@ export const metadata: Metadata = {
   title: "Kestrel — Campsite Availability Alerts",
   description:
     "Get instant alerts when campsites open up. Covers Recreation.gov, California, BC Parks, and more.",
-  icons: {
-    icon: "/icon.png",
-    apple: "/icon.png",
-  },
 };
 
 export default function RootLayout({
