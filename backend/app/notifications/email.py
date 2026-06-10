@@ -47,7 +47,7 @@ async def _send_sendgrid(to: str, subject: str, body: str) -> None:
         from sendgrid.helpers.mail import Mail
         sg = sendgrid.SendGridAPIClient(api_key=settings.sendgrid_api_key)
         message = Mail(
-            from_email="whicter.han@gmail.com",
+            from_email="noreply@kestrel-camp.com",
             to_emails=to,
             subject=subject,
             plain_text_content=body,
