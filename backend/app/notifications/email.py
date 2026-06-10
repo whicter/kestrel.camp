@@ -99,7 +99,7 @@ Manage alerts: https://www.kestrel-camp.com/alerts
 async def _send_sendgrid(to: str, subject: str, html_body: str, plain_body: str) -> None:
     try:
         import sendgrid
-        from sendgrid.helpers.mail import Mail
+        from sendgrid.helpers.mail import Mail, TrackingSettings, ClickTracking
         sg = sendgrid.SendGridAPIClient(api_key=settings.sendgrid_api_key)
         message = Mail(
             from_email="noreply@kestrel-camp.com",
@@ -108,6 +108,9 @@ async def _send_sendgrid(to: str, subject: str, html_body: str, plain_body: str)
             html_content=html_body,
             plain_text_content=plain_body,
         )
+        tracking = TrackingSettings()
+        tracking.click_tracking = ClickTracking(enable=False, enable_text=False)
+        message.tracking_settings = tracking
         resp = sg.client.mail.send.post(request_body=message.get())
         logger.info("📧 Email sent to %s (status %s)", to, resp.status_code)
     except Exception as e:
