@@ -104,7 +104,7 @@ export default function HomePage() {
         {/* ── Hero ── dark forest bg ───────────────────────────────────────── */}
         <section
           className="relative overflow-hidden"
-          style={{ backgroundColor: "var(--primary)" }}
+          style={{ backgroundColor: "#2D5040" }}
         >
           {/* Dot-grid texture */}
           <div
@@ -132,8 +132,8 @@ export default function HomePage() {
                 <Image
                   src="/icon.png"
                   alt="Kestrel"
-                  width={88}
-                  height={88}
+                  width={112}
+                  height={112}
                   className="relative rounded-2xl shadow-2xl"
                   priority
                 />
@@ -207,7 +207,7 @@ export default function HomePage() {
               className="mb-12 text-center text-3xl font-semibold text-foreground"
               style={{ fontFamily: "var(--font-heading)" }}
             >
-              Up and running in 30 seconds
+              Stop refreshing. Start camping.
             </h2>
 
             <div className="grid gap-10 sm:grid-cols-3">
